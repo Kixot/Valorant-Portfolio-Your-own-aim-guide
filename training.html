@@ -442,10 +442,14 @@
       #ovRank { height: 60px; }
     }
 
-    /* ============ custom cursor + sparks (same as the main page) ============ */
-    @media (hover: hover) and (pointer: fine) {
-      body { cursor: none; }
-    }
+    /* ============ custom cursor + sparks (same as the main page) ============
+       the native cursor is hidden ONLY while the custom one is actually running —
+       html.cur-on is added by the script below, and nothing else hides it. it used to
+       be a bare media query, so a visitor with reduced motion enabled (the script
+       declines to run) landed on a range with no cursor anywhere at all.
+       the control rules below still hand the real pointer back over anything clickable. */
+    html.cur-on, html.cur-on body { cursor: none; }
+    html.cur-on a, html.cur-on button, html.cur-on input, html.cur-on select, html.cur-on label { cursor: pointer; }
     #cur {
       position: fixed; top: 0; left: 0;
       z-index: 600; pointer-events: none;
@@ -464,7 +468,6 @@
     #cur.is-visible { opacity: 1; }
     #cur.is-hover { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)); }
     @media (hover: none) {
-      body { cursor: auto; }
       #cur { display: none; }
     }
     .spark {
@@ -798,13 +801,18 @@
       const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (!finePointer && cur) cur.remove();
       if (finePointer && !reducedMotion && cur) {
+        /* declare the custom cursor first: it is what turns the native one off */
+        document.documentElement.classList.add('cur-on');
         let cx = -100, cy = -100, shown = false;
-        window.addEventListener('mousemove', (e) => {
+        const follow = (e) => {
           /* pointer lock freezes clientX/Y — the in-game crosshair takes over */
           if (document.pointerLockElement) return;
           cx = e.clientX; cy = e.clientY;
           if (!shown) { shown = true; cur.classList.add('is-visible'); }
-        }, { passive: true });
+        };
+        /* pointermove too: some setups (pen, hybrid laptops) only ever send one of the two */
+        window.addEventListener('pointermove', follow, { passive: true });
+        window.addEventListener('mousemove', follow, { passive: true });
         (function tick() {
           if (cur.__x !== cx || cur.__y !== cy) { cur.__x = cx; cur.__y = cy; cur.style.transform = 'translate3d(' + cx + 'px,' + cy + 'px,0)'; }
           requestAnimationFrame(tick);

@@ -54,8 +54,15 @@
       font-size: 16px;
       line-height: 1.65;
       overflow-x: hidden;
-      cursor: none;
     }
+
+    /* the native cursor is switched off ONLY while the custom one is actually running.
+       the script adds html.cur-on when it starts; if it never runs (no js, a touch or
+       hybrid pointer that fails the hover/pointer check, reduced motion, or any error
+       before this point) the page still has a real cursor instead of nothing at all.
+       that inversion is the whole fix: it used to be body{cursor:none} unconditionally,
+       which left anyone whose browser failed the matchMedia check with no cursor. */
+    html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
     ::selection { background: var(--green); color: #000000; }
     ::-webkit-scrollbar { width: 9px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
@@ -149,7 +156,7 @@
     /* click feedback is the spark burst only. no square ring, ever */
 
     @media (hover: none) {
-      body { cursor: auto; }
+      /* html.cur-on never gets set on these, so the native cursor stays by default */
       #cur { display: none; }
     }
 
@@ -178,7 +185,6 @@
       color: var(--text);
       background: rgba(0, 0, 0, 0.72);
       border: 1px solid var(--line-strong);
-      cursor: none;
       overflow: hidden;
       transition: border-color 0.25s, box-shadow 0.25s, background 0.25s, filter 0.25s;
     }
@@ -220,7 +226,6 @@
     .ff__folder {
       position: relative;
       width: 86px; height: 60px;
-      cursor: none;
       animation: ffFloat 3.4s ease-in-out infinite;
       filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.55));
     }
@@ -611,7 +616,6 @@
       border: 1px solid var(--line);
       padding: 10px 16px; letter-spacing: 0.06em;
       transition: border-color 0.25s, background 0.25s;
-      cursor: none;
     }
     .copy-btn:hover { border-color: var(--line-strong); background: var(--green-soft); }
     .copy-toast { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: var(--green); opacity: 0; transform: translateY(4px); transition: opacity 0.25s, transform 0.25s; margin-left: 8px; align-self: center; }
@@ -756,7 +760,6 @@
       .w { clip-path: none; }
       .w > i { opacity: 1; transform: none; transition-delay: 0s !important; }
       .spot::after { transform: scaleX(1); }
-      body { cursor: auto; }
       #cur { display: none; }
       .page { opacity: 1; }
     }
@@ -1131,14 +1134,22 @@
         }, { passive: true });
       }
 
-      /* ============ cursor: single circle + plus, exact follow ============ */
+      /* ============ cursor: single circle + plus, exact follow ============
+         owns the pointer, so it declares itself first: html.cur-on is the only thing
+         that hides the native cursor. anything that stops this block from running
+         leaves visitors with a normal cursor, which is the safe way round. */
       const cur = $('#cur');
       if (cur && window.matchMedia('(hover: hover) and (pointer: fine)').matches && !reducedMotion) {
+        document.documentElement.classList.add('cur-on');
         let x = -100, y = -100, shown = false;
-        window.addEventListener('mousemove', (e) => {
+        const follow = (e) => {
           x = e.clientX; y = e.clientY;
           if (!shown) { shown = true; cur.classList.add('is-visible'); }
-        }, { passive: true });
+        };
+        /* pointermove as well as mousemove: some setups (pen, hybrid laptops, remote
+           desktop) only ever deliver one of the two */
+        window.addEventListener('pointermove', follow, { passive: true });
+        window.addEventListener('mousemove', follow, { passive: true });
         (function tick() {
           cur.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
           requestAnimationFrame(tick);
