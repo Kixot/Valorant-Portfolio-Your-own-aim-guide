@@ -1,0 +1,2345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kixot</title>
+  <meta name="description" content="kixot's 3d aim trainer. valorant accurate sens, rank based difficulty, guided workouts, and a report card that roasts you lovingly." />
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23000000'/%3E%3Ccircle cx='60' cy='60' r='44' fill='none' stroke='%23ffffff' stroke-width='6'/%3E%3Ccircle cx='60' cy='60' r='9' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://media.valorant-api.com" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <!-- crete round carries every title; body copy is courier new (a system face, no download).
+       outfit is only here for the handful of words that revert to the pre-redesign face. -->
+  <link rel="preload" href="fonts/crete-round-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    @font-face { font-family: 'Crete Round'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/crete-round-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Outfit'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('fonts/outfit-latin.woff2') format('woff2'); }
+    html { background: #000000; }
+    :root {
+      --bg: #000000;
+      --panel: rgba(255, 255, 255, 0.035);
+      --glass: rgba(0, 0, 0, 0.72);
+      --line: rgba(255, 255, 255, 0.14);
+      --line-strong: rgba(255, 255, 255, 0.5);
+      --green: #ffffff;
+      --green-soft: rgba(255, 255, 255, 0.07);
+      --blue: #ffffff;
+      --text: #f5f5f5;
+      --muted: #8b8b8b;
+      --font-display: 'Crete Round', Georgia, 'Times New Roman', serif;
+      --font-body: 'Courier New', Courier, ui-monospace, monospace;
+      /* the face a hand-picked set of words used before the redesign (display sans) */
+      --font-prev: 'Outfit', 'Segoe UI', sans-serif;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+      font-size: 16px;
+      line-height: 1.65;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    ::selection { background: var(--green); color: #000000; }
+    ::-webkit-scrollbar { width: 9px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--green); }
+
+    h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; line-height: 1.08; text-transform: uppercase; }
+    a { color: inherit; text-decoration: none; }
+    .accent { color: var(--green); }
+    .muted { color: var(--muted); }
+
+    /* aurora is STATIC on the range page: a full-screen blur that re-rasters every frame
+       while webgl renders was eating frames. static = painted once, costs nothing. */
+    .aurora { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; filter: blur(40px); opacity: 0.4; }
+    .aurora i { position: absolute; border-radius: 50%; }
+    .aurora i:nth-child(1) { width: 55vw; height: 55vw; left: -12vw; top: -18vw; background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent 65%); }
+    .aurora i:nth-child(2) { width: 48vw; height: 48vw; right: -14vw; top: 6vw; background: radial-gradient(circle, rgba(255, 255, 255, 0.28), transparent 65%); }
+
+    .wrap { position: relative; z-index: 1; max-width: 980px; margin: 0 auto; padding: clamp(26px, 5vh, 52px) 22px 120px; }
+
+    .stage-title { font-size: clamp(38px, 6.4vw, 62px); }
+    /* pre-redesign face: ONLY these titles. every card/stat/subtext stays courier new. */
+    .stage-title, #ovTitle { font-family: var(--font-prev); font-weight: 800; }
+
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: clamp(20px, 4vw, 32px);
+      margin-top: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--green), var(--blue), transparent);
+      opacity: 0.7;
+    }
+
+    .q { margin-top: 22px; }
+    .q > p { font-weight: 600; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .q > p .accent { margin-right: 8px; }
+
+    .opts { display: flex; gap: 10px; flex-wrap: wrap; }
+    .opt {
+      font-family: var(--font-body);
+      font-weight: 600; font-size: 13.5px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.2s var(--ease);
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .opt:hover { color: var(--text); border-color: var(--line-strong); }
+    .opt.is-on { color: #000000; background: var(--green); border-color: var(--green); box-shadow: 0 0 16px rgba(255, 255, 255, 0.35); }
+    .opt img { height: 22px; width: auto; }
+
+    /* buttons: stable, no movement, clean specular shine on hover (transform only) */
+    .rbtn {
+      position: relative;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 28px;
+      font-family: var(--font-body); font-weight: 700; font-size: 12.5px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text);
+      background: #000000;
+      border: 1px solid var(--line-strong);
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s, filter 0.25s;
+    }
+    .rbtn::after {
+      /* specular highlight: light bar sweeps across on hover. transform-only, no reflow */
+      content: '';
+      position: absolute; top: -40%; bottom: -40%; left: 0;
+      width: 36%;
+      background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+      transform: translateX(-240%) skewX(-18deg);
+      transition: transform 0.65s var(--ease), opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .rbtn:hover::after, .rbtn:active::after,
+    .rbtn:focus-visible::after {
+      transform: translateX(430%) skewX(-18deg);
+      opacity: 1;
+    }
+    /* hover = full inversion: dark chips flash green with black text, solid green goes dark with white text */
+    .rbtn:hover {
+      background: var(--green);
+      color: #000000;
+      border-color: var(--green);
+      box-shadow: 0 0 18px rgba(255, 255, 255, 0.35), inset 0 0 14px rgba(255, 255, 255, 0.08);
+    }
+    .rbtn:focus-visible { outline: 2px solid var(--blue); outline-offset:3px; }
+    .rbtn--solid { background: linear-gradient(120deg, #ffffff, #ffffff); color: #000000; border-color: transparent; }
+    .rbtn--solid::after { background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%); }
+    .rbtn--solid:hover {
+      background: linear-gradient(120deg, #0a0a0a, #000000);
+      color: var(--text);
+      border-color: var(--line-strong);
+      filter: none;
+      box-shadow: 0 0 22px rgba(255, 255, 255, 0.28);
+    }
+    .rbtn[disabled] { opacity: 0.4; pointer-events: none; }
+
+    /* locked report card: the greyed button ignores pointer events, so the wrapper
+       catches the hover and pops the how-to-unlock note above it. */
+    .lock-wrap { position: relative; display: inline-block; }
+    .lock-pop {
+      position: absolute; left: 50%; bottom: calc(100% + 10px);
+      transform: translate(-50%, 6px) scale(0.96);
+      background: #ffffff; color: #000000;
+      padding: 8px 13px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em;
+      width: max-content; max-width: min(80vw, 300px); text-align: center; line-height: 1.4;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 40;
+    }
+    .lock-wrap.is-locked:hover .lock-pop,
+    .lock-wrap.is-locked:focus-within .lock-pop { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    /* narrow screens: anchor the note to the button's left so it never runs off-screen */
+    @media (max-width: 560px) {
+      .lock-pop { left: 0; transform: translate(0, 6px) scale(0.96); }
+      .lock-wrap.is-locked:hover .lock-pop,
+      .lock-wrap.is-locked:focus-within .lock-pop { transform: translate(0, 0) scale(1); }
+    }
+
+    .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 18px; }
+    .plan-item { border: 1px solid var(--line); background: var(--panel); padding: 16px 18px; }
+    .plan-item h3 { font-size: 16px; letter-spacing: 0.02em; text-transform: uppercase; }
+    .plan-item p { color: var(--muted); font-size: 13.5px; margin-top: 4px; font-weight: 500; }
+    .plan-item .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--blue); margin-bottom: 6px; }
+
+    .session-box { border: 1px solid var(--line-strong); background: var(--green-soft); padding: 16px 18px; margin-top: 20px; }
+    .session-box h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .session-box p { font-weight: 500; font-size: 14px; color: #d5d5d5; }
+
+    .set-row { display: flex; align-items: center; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+    .set-row label { font-weight: 600; font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); min-width: 110px; }
+    input[type="range"] { flex: 1; min-width: 140px; appearance: none; -webkit-appearance: none; height: 4px; background: rgba(255, 255, 255, 0.15); outline: none; }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 18px; height: 18px; background: var(--green);
+      clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; background: var(--green); border: 0; cursor: pointer; }
+    .set-val { font-weight: 700; font-size: 18px; color: var(--green); min-width: 74px; text-align: right; }
+
+    .xh-preview { width: 76px; height: 76px; flex: 0 0 auto; background: #000000; border: 1px solid var(--line); overflow: hidden; }
+    .xh-preview canvas { width: 100%; height: 100%; display: block; }
+
+    .hint-box { border: 1px dashed var(--line-strong); background: var(--green-soft); padding: 12px 16px; font-weight: 500; font-size: 13.5px; margin-top: 18px; }
+
+    .bench-box { border: 1px solid var(--line); background: var(--panel); padding: 14px 16px; margin-top: 18px; font-size: 13px; font-weight: 500; color: var(--muted); }
+    .bench-box b { color: var(--text); }
+
+    .range-shell { margin-top: 24px; border: 1px solid var(--line); background: #000000; position: relative; overflow: hidden; }
+    .range-wrap { position: relative; }
+    #range3d { display: block; width: 100%; height: clamp(340px, 58vh, 600px); touch-action: none; }
+    #xhLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+
+    .range-hud { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; pointer-events: none; z-index: 6; }
+    .hud-chip { background: rgba(0, 0, 0, 0.78); border: 1px solid var(--line); padding: 6px 12px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .hud-chip b { display: block; font-weight: 700; font-size: 20px; color: var(--text); letter-spacing: 0.02em; }
+    .hud-chip--score b { color: var(--green); }
+    .hud-chip--time b { color: var(--blue); }
+
+    .session-banner {
+      /* lives inside .range-hud as its own wrapped row, so it can never cover the chips */
+      flex: 1 1 100%;
+      max-width: max-content;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--line-strong);
+      padding: 6px 12px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--green);
+      display: none;
+    }
+    .session-banner.is-on { display: block; }
+
+    .range-note { position: absolute; bottom: 12px; left: 14px; font-size: 11.5px; font-weight: 500; color: var(--muted); background: rgba(0, 0, 0, 0.65); padding: 5px 10px; z-index: 6; }
+
+    .range-overlay {
+      position: absolute; inset: 0; z-index: 8;
+      display: flex; flex-direction: column; align-items: center;
+      /* flexible spacers (::before/::after) center the content when it fits, but let it
+         flow + scroll from the top when it's tall — no more clipped/colliding stacks */
+      justify-content: flex-start;
+      gap: 12px; text-align: center; padding: 60px 24px 28px;
+      background: rgba(0, 0, 0, 0.68);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      transition: opacity 0.3s;
+      overflow-y: auto;
+    }
+    .range-overlay::before, .range-overlay::after { content: ''; flex: 1 0 12px; }
+    .range-overlay > * { flex-shrink: 0; }
+    .range-overlay.is-hidden { opacity: 0; pointer-events: none; }
+    .range-overlay h3 { font-size: clamp(28px, 4.6vw, 44px); }
+    .range-overlay p { color: var(--muted); font-weight: 500; max-width: 500px; }
+    #ovBig { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: clamp(70px, 12vw, 124px); line-height: 1; color: var(--green); text-shadow: 0 0 44px rgba(255, 255, 255, 0.45); display: none; }
+    #ovBig.is-showing { display: block; }
+    #ovRank { height: 92px; width: auto; display: none; filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.35)); }
+    #ovRank.is-showing { display: block; }
+    #ovMsg { color: var(--text); font-weight: 600; font-size: 16px; min-height: 24px; }
+    #ovNext { color: var(--blue); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; min-height: 18px; }
+    /* .rbtn's display would otherwise beat the [hidden] attribute */
+    #ovBtn2[hidden] { display: none; }
+    /* the two end-of-run actions sit side by side */
+    .ov-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    /* .rbtn's display would otherwise beat the [hidden] attribute */
+    
+
+    .modes-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; justify-content: center; }
+    .mode-btn {
+      font-family: var(--font-body); font-weight: 700; font-size: 12px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted); background: transparent;
+      border: 1px solid var(--line); padding: 13px 20px;
+      cursor: pointer; transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .mode-btn:hover { color: var(--text); border-color: var(--line-strong); }
+    .mode-btn.is-active { color: #000000; background: var(--green); border-color: var(--green); box-shadow: 0 0 18px rgba(255, 255, 255, 0.3); }
+
+    .res-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .res-head img { height: 104px; width: 104px; flex: 0 0 auto; object-fit: contain; filter: drop-shadow(0 0 26px rgba(255, 255, 255, 0.4)); }
+    .res-head > div { flex: 1 1 0; min-width: 240px; }
+    .res-head h2 { font-size: clamp(38px, 6.4vw, 60px); line-height: 1.05; margin-top: 0; }
+    .res-head .pun { color: var(--green); font-weight: 600; font-size: 17.5px; margin-top: 4px; }
+    .res-head .tot { color: var(--muted); font-weight: 600; font-size: 14px; margin-top: 6px; }
+
+    .res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 22px; }
+    .res-card { border: 1px solid var(--line); background: var(--panel); padding: 16px 18px; }
+    .res-card h3 { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+    .res-card b { display: block; font-weight: 700; font-size: 32px; margin-top: 6px; letter-spacing: 0.01em; }
+    .res-card span { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    .overview { margin-top: 26px; display: grid; gap: 14px; }
+    .ov-row { border: 1px solid var(--line); background: var(--panel); padding: 16px 18px; }
+    .ov-row h3 { display: flex; align-items: center; gap: 10px; font-size: 17px; letter-spacing: 0.02em; }
+    .ov-row .bar { height: 7px; background: rgba(255, 255, 255, 0.12); margin: 10px 0 6px; overflow: hidden; }
+    .ov-row .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width 0.9s var(--ease) 0.15s; }
+    .ov-row .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-weight: 500; }
+    .ov-row p { font-weight: 500; font-size: 14px; margin-top: 8px; }
+
+    .bench-table { margin-top: 26px; border: 1px solid var(--line); }
+    .bench-table .brow { display: flex; justify-content: space-between; padding: 9px 16px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--muted); }
+    .bench-table .brow:last-child { border-bottom: 0; }
+    .bench-table .brow.is-you { background: var(--green-soft); color: var(--text); }
+    .bench-table .brow img { height: 18px; width: auto; vertical-align: -4px; margin-right: 8px; }
+
+    .sens-box { border-left: 3px solid #ffffff; background: transparent; padding: 14px 18px; margin-top: 18px; }
+    .sens-box b { color: var(--blue); text-transform: uppercase; letter-spacing: 0.14em; font-size: 11.5px; display: block; margin-bottom: 4px; }
+    .sens-box p { font-weight: 500; font-size: 14.5px; }
+
+    .tips { margin-top: 20px; display: grid; gap: 10px; }
+    .tip { border-left: 3px solid var(--green); background: var(--panel); padding: 12px 16px; font-weight: 500; }
+    .tip b { color: var(--green); text-transform: uppercase; letter-spacing: 0.12em; font-size: 11.5px; display: block; }
+
+    .foot-note { margin-top: 32px; text-align: center; color: var(--muted); font-size: 13.5px; }
+    .foot-note a { color: var(--green); }
+
+    .hidden { display: none !important; }
+
+    /* folder float menu (reactbits branched style, top left) */
+    .ff { position: fixed; left: 22px; top: 20px; z-index: 150; perspective: 800px; }
+    .ff__folder {
+      position: relative;
+      width: 86px; height: 60px;
+      cursor: pointer;
+      animation: ffFloat 3.4s ease-in-out infinite;
+      filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.55));
+    }
+    @keyframes ffFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    .ff__back {
+      position: absolute; inset: 0;
+      background: #0a0a0a;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px 12px 10px 10px;
+    }
+    .ff__tab {
+      position: absolute; top: -12px; left: 8px;
+      width: 44px; height: 16px;
+      background: #0a0a0a;
+      border: 1px solid var(--line-strong); border-bottom: 0;
+      border-radius: 6px 8px 0 0;
+      font-size: 8.5px; font-weight: 700; line-height: 15px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--green); text-align: center;
+    }
+    .ff__paper {
+      position: absolute; left: 10px; right: 10px; top: 10px; height: 38px;
+      background: #e5e5e5; border-radius: 4px;
+      opacity: 0.92;
+      transition: transform 0.45s var(--ease);
+    }
+    .ff__paper.p2 { top: 14px; opacity: 0.5; }
+    .ff:hover .ff__paper { transform: translateY(-9px); }
+    .ff:hover .ff__paper.p2 { transform: translateY(-5px); }
+    .ff__front {
+      position: absolute; inset: 0; z-index: 2;
+      background: #141414;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px 12px 10px 10px;
+      display: grid; place-items: center;
+      transform-origin: bottom;
+      transition: transform 0.5s cubic-bezier(0.6, -0.28, 0.3, 1.4);
+    }
+    .ff:hover .ff__front { transform: rotateX(58deg); }
+    .ff__label {
+      font-family: var(--font-display); font-weight: 800;
+      font-size: 10px; letter-spacing: 0.24em;
+      color: var(--green); text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    }
+    /* dock type: courier new, bold (specificity beats the --font-display rules below) */
+    .ff .ff__tab, .ff .ff__label, .ff .ff__item { font-family: 'Courier New', Courier, monospace; font-weight: 700; }
+    .ff__items {
+      position: absolute; top: calc(100% + 16px); left: 12px;
+      display: flex; flex-direction: column; gap: 7px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.28s, transform 0.35s var(--ease);
+      transform: translateY(-8px);
+    }
+    .ff__items::before {
+      content: '';
+      position: absolute; left: 17px; top: -16px;
+      width: 1.5px; height: 16px;
+      background: var(--line-strong);
+      transform: scaleY(0); transform-origin: top;
+      transition: transform 0.25s var(--ease);
+    }
+    .ff:hover .ff__items::before, .ff:focus-within .ff__items::before { transform: scaleY(1); }
+    .ff:hover .ff__items, .ff:focus-within .ff__items {
+      opacity: 1; transform: translateY(0);
+      pointer-events: auto;
+    }
+    .ff__item {
+      position: relative;
+      margin-left: 20px;
+      padding: 9px 14px;
+      font-family: var(--font-display); font-weight: 700;
+      font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted);
+      border-radius: 9px;
+      opacity: 0;
+      transform: translateX(-14px) scale(0.85);
+      transform-origin: left center;
+      transition: opacity 0.3s, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+    .ff__item::before {
+      content: '';
+      position: absolute; right: 100%; top: 50%;
+      width: 14px; height: 1.5px;
+      background: var(--line-strong);
+      transform: scaleX(0); transform-origin: right;
+      transition: transform 0.25s var(--ease);
+    }
+    .ff:hover .ff__item::before, .ff:focus-within .ff__item::before { transform: scaleX(1); }
+    .ff:hover .ff__item, .ff:focus-within .ff__item { opacity: 1; transform: translateY(0) scale(1); }
+    .ff:hover .ff__item:nth-child(1) { transition-delay: 0.05s; }
+    .ff:hover .ff__item:nth-child(2) { transition-delay: 0.12s; }
+    .ff:hover .ff__item:nth-child(3) { transition-delay: 0.19s; }
+    .ff:hover .ff__item:nth-child(1)::before { transition-delay: 0.06s; }
+    .ff:hover .ff__item:nth-child(2)::before { transition-delay: 0.13s; }
+    .ff:hover .ff__item:nth-child(3)::before { transition-delay: 0.2s; }
+    .ff__item:hover { color: #000000 !important; background: var(--green); }
+    .ff__item.is-active { color: var(--green); }
+    .ff__item--cta { background: linear-gradient(135deg, #ffffff, #ffffff); color: #000000 !important; box-shadow: 0 6px 18px rgba(255, 255, 255, 0.35); }
+
+    @media (max-width: 560px) {
+      .ff { transform: scale(0.82); transform-origin: top left; }
+    }
+
+    @media (max-width: 640px) {
+      .res-head img { height: 80px; }
+      #range3d { height: clamp(300px, 55vh, 440px); }
+      .set-row label { min-width: 90px; }
+      .range-overlay { gap: 6px; padding: 14px; }
+      .range-overlay h3 { font-size: 24px; }
+      #ovBig { font-size: 64px; }
+      #ovRank { height: 60px; }
+    }
+
+    /* ============ custom cursor + sparks (same as the main page) ============ */
+    @media (hover: hover) and (pointer: fine) {
+      body { cursor: none; }
+    }
+    #cur {
+      position: fixed; top: 0; left: 0;
+      z-index: 600; pointer-events: none;
+      width: 12px; height: 12px;
+      margin: -6px 0 0 -6px;
+      border: 0;
+      background:
+        linear-gradient(transparent 0 5px, var(--green) 5px 7px, transparent 7px),
+        linear-gradient(90deg, transparent 0 5px, var(--green) 5px 7px, transparent 7px);
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+      opacity: 0;
+      transition: opacity 0.2s, filter 0.2s;
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+    #cur.is-visible { opacity: 1; }
+    #cur.is-hover { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)); }
+    @media (hover: none) {
+      body { cursor: auto; }
+      #cur { display: none; }
+    }
+    .spark {
+      position: fixed; z-index: 250; pointer-events: none;
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: sparkOut 0.5s var(--ease) forwards;
+    }
+    @keyframes sparkOut { to { transform: translate(var(--sx), var(--sy)) scale(0.2); opacity: 0; } }
+    #cur.is-hidden { opacity: 0 !important; } /* native pointer takes over over buttons/sliders */
+    /* so the normal cursor is always visible when picking things (never a blank pointer) */
+    a, button, input, select, label { cursor: pointer; }
+
+    .mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* apple emojis everywhere: inline pngs replace whatever emoji font the os ships */
+    img.emj {
+      display: inline-block; width: 1.15em; height: 1.15em;
+      margin: 0 0.08em; vertical-align: -0.18em;
+    }
+
+    /* fullscreen goes on the range element itself: the game fills the screen */
+    .range-shell:fullscreen { border: none; cursor: crosshair; }
+    .range-shell:fullscreen #range3d { height: 100vh; height: 100dvh; }
+
+    /* ============ fixed top-right chips: fullscreen + home, on every step ============ */
+    .top-chips {
+      position: fixed; top: 18px; right: 20px; z-index: 220;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .home-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      font-family: var(--font-body); font-weight: 700; font-size: 12px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--green); text-decoration: none;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+      cursor: pointer;
+    }
+    .home-chip:hover { background: var(--green); color: #000000; transform: translateY(-1px); }
+    .rbtn--mini { padding: 9px 16px; font-size: 11px; letter-spacing: 0.1em; }
+
+    /* fullscreen lives ONLY on the overlays — visible on the start screen and every
+       time esc pops the pause overlay. nothing persistent floats over the range. */
+    .ov-fs { position: absolute; top: 16px; right: 16px; }
+
+    .drill { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; margin-top: 9px; background: rgba(0, 0, 0, 0.5); }
+    .drill b { color: var(--text); }
+    .drill p { font-size: 12.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+    .drill .rbtn { padding: 8px 14px; font-size: 11px; }
+    @media (max-width: 640px) { .top-chips { top: 12px; right: 12px; gap: 8px; } .home-chip { padding: 9px 14px; } }
+
+    #fireBtn {
+      display: none;
+      position: absolute; right: 16px; bottom: 56px; z-index: 9;
+      width: 78px; height: 78px;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      background: rgba(255, 255, 255, 0.15);
+      font-size: 26px;
+      box-shadow: 0 0 24px rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      place-items: center;
+    }
+    #fireBtn:active { transform: scale(0.92); }
+
+    /* ============ flat mode: black + white, no glows ============ */
+    .aurora { display: none !important; }
+    * { text-shadow: none !important; box-shadow: none !important; filter: none !important; }
+    .rbtn { background: transparent; color: var(--text); border-color: var(--line-strong); }
+    .rbtn:hover { background: #ffffff; color: #000000; border-color: #ffffff; }
+    .rbtn--solid { background: #ffffff; color: #000000; border-color: #ffffff; }
+    .rbtn--solid:hover { background: transparent; color: var(--text); border-color: var(--line-strong); }
+    .rbtn::after { background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%); }
+    .ff__item--cta { background: #ffffff; color: #000000 !important; }
+    .ff__item:hover { background: #ffffff; color: #000000 !important; }
+    .home-chip { background: transparent; color: var(--text); }
+    .home-chip:hover { background: #ffffff; color: #000000; }
+    .mode-btn.is-active { color: #000000; background: #ffffff; border-color: #ffffff; }
+    #fireBtn { border-color: #ffffff; background: rgba(255, 255, 255, 0.1); color: #ffffff; font-size: 17px; letter-spacing: 0.08em; }
+    .ov-row .bar i { background: #ffffff; }
+
+    /* metallic white accent type: monochrome sheen, no colour */
+    .accent, .plan-item .tag, #ovBig, .set-val, .res-head .pun, .tip b {
+      background: linear-gradient(180deg, #ffffff 0%, #8f8f8f 46%, #ffffff 58%, #c9c9c9 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+
+    /* ============ react-bits style spotlight card ============ */
+    .rb-card {
+      position: relative;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: clamp(18px, 3vw, 28px);
+      margin-top: 18px;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s var(--ease);
+    }
+    .rb-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.1), transparent 65%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .rb-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+    .rb-card:hover::before { opacity: 1; }
+    .rb-card h3 { font-size: clamp(18px, 2.6vw, 24px); }
+    .rb-line { font-weight: 500; font-size: 14.5px; margin-top: 10px; }
+    .rb-line span { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="cur" aria-hidden="true"></div>
+
+  <div class="top-chips">
+    <a class="home-chip" href="index.html" data-nav>home</a>
+  </div>
+
+  <main class="wrap" id="top">
+    <!-- ============ STEP 1: SURVEY ============ -->
+    <section id="stepSurvey">
+      <h1 class="stage-title">THE <span class="accent">DOJO</span></h1>
+
+      <div class="card">
+        <div class="q">
+          <p>current rank?</p>
+          <div class="opts" id="qRank"></div>
+        </div>
+        <div class="q">
+          <p>what do you want to improve? (pick any)</p>
+          <div class="opts" id="qGoal"></div>
+        </div>
+        <div class="q">
+          <p>how hard should the range be?</p>
+          <div class="opts" data-single id="qDiff"></div>
+        </div>
+        <div class="q">
+          <p>how many hours do you play per week?</p>
+          <div class="opts" data-single id="qHours"></div>
+        </div>
+        <div class="q">
+          <p>your sens feels...</p>
+          <div class="opts" data-single id="qSens"></div>
+        </div>
+        <div style="margin-top:28px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+          <button class="rbtn rbtn--solid" id="btnPlan" disabled type="button">Build my plan</button>
+          <span class="muted" id="surveyHint" style="align-self:center;font-weight:600;">pick a rank to start</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STEP 2: PLAN + SESSION CHOICE ============ -->
+    <section id="stepPlan" class="hidden">
+      <h1 class="stage-title">YOUR <span class="accent">PLAN</span></h1>
+      <div class="card">
+        <div class="plan-grid" id="planGrid"></div>
+        <p class="muted" style="margin-top:20px;font-weight:500;" id="planRoast"></p>
+
+        <div class="rb-card">
+          <h3>how do you wanna train?</h3>
+          <p class="rb-line">guide : <span id="guideList">building your exercises</span></p>
+          <p class="rb-line">individual : <span>do whatever you want :)</span></p>
+          <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="rbtn rbtn--solid" id="btnGuided" type="button">guide</button>
+            <button class="rbtn" id="btnFree" type="button">individual</button>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <button class="rbtn" id="btnRedo" type="button">retake survey</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STEP 3: SETTINGS + RANGE ============ -->
+    <section id="stepSettings" class="hidden">
+      <h1 class="stage-title">SETTINGS</h1>
+
+      <div class="card">
+        <div class="set-row">
+          <label>difficulty</label>
+          <div class="opts" data-single id="optDiffLive"></div>
+        </div>
+        <div class="set-row">
+          <label>crosshair color</label>
+          <div class="opts" data-single id="optColor"></div>
+        </div>
+        <div class="set-row">
+          <label>style</label>
+          <div class="opts" data-single id="optStyle"></div>
+        </div>
+        <div class="set-row">
+          <label>outline</label>
+          <div class="opts" data-single id="optOutline"></div>
+        </div>
+        <div class="set-row">
+          <label for="rngLen">length</label>
+          <input type="range" id="rngLen" min="1" max="10" value="4" />
+          <span class="set-val" id="valLen">4</span>
+        </div>
+        <div class="set-row">
+          <label for="rngThick">thickness</label>
+          <input type="range" id="rngThick" min="1" max="4" value="1" />
+          <span class="set-val" id="valThick">1</span>
+        </div>
+        <div class="set-row">
+          <label for="rngGap">gap</label>
+          <input type="range" id="rngGap" min="0" max="10" value="2" />
+          <span class="set-val" id="valGap">2</span>
+        </div>
+        <div class="set-row">
+          <label for="rngSens">your in game sens</label>
+          <input type="range" id="rngSens" min="1" max="100" value="40" />
+          <span class="set-val" id="valSens">0.40</span>
+        </div>
+        <div class="set-row" style="align-items:flex-start;">
+          <label>preview</label>
+          <div class="xh-preview"><canvas id="xhCanvas" width="152" height="152"></canvas></div>
+          <p class="muted" style="font-weight:500;font-size:13.5px;max-width:430px;">
+            your in game sens: <b class="accent" id="sensLabel">0.40</b><span id="sensNote"></span>
+          </p>
+        </div>
+        <div class="hint-box">
+          desktop: click the range to lock your mouse, click to shoot, esc to pause · F = fullscreen mid-run<br>
+          turn off os mouse acceleration / enhance pointer precision, the range reads raw mouse counts<br>
+          mobile: drag to aim, tap to fire
+        </div>
+        <div class="bench-box">
+          <b>rank benchmarks</b> · flick, precision : radiant 15k+ · immortal 12k+ · asc 10k+ · diamond 8k+ · plat 6.8k+ · gold 5.6k+ · silver 4.4k+ · bronze 2.4k+ · iron below · tracking : radiant 2.5k+ · immortal 2k+ · asc 1.6k+ · diamond 1.3k+ · plat 1.1k+ · gold 900+ · silver 650+ · bronze 300+ · iron below
+        </div>
+      </div>
+
+      <div class="modes-row">
+        <button class="mode-btn is-active" data-mode="flick" type="button">Flick</button>
+        <button class="mode-btn" data-mode="precision" type="button">Precision</button>
+        <button class="mode-btn" data-mode="track" type="button">Tracking</button>
+      </div>
+
+      <div class="range-shell">
+        <div class="range-wrap">
+          <canvas id="range3d"></canvas>
+          <canvas id="xhLayer"></canvas>
+          <div class="range-hud" data-emj-skip>
+            <div class="hud-chip hud-chip--score">score<b id="hudScore">0</b></div>
+            <div class="hud-chip hud-chip--time">time<b id="hudTime">30.0</b></div>
+            <div class="hud-chip">acc<b id="hudAcc">-</b></div>
+            <div class="hud-chip">streak<b id="hudStreak">0</b></div>
+            <div class="session-banner" id="sessionBanner"></div>
+          </div>
+          <div class="range-note" id="rangeNote">click the range to lock in</div>
+          <div class="range-overlay" id="overlay">
+            <h3 id="ovTitle"><span class="accent">FLICK</span> RANGE</h3>
+            <p id="ovDesc"></p>
+            <div id="ovBig"></div>
+            <img id="ovRank" alt="rank" width="256" height="256" />
+            <p id="ovMsg"></p>
+            <p id="ovNext"></p>
+            <button class="rbtn rbtn--solid" id="ovBtn" type="button">Start</button>
+            <button class="rbtn" id="ovBtn2" type="button" hidden>start next</button>
+            <button class="rbtn rbtn--mini ov-fs" id="ovFs" type="button" data-emj-skip>fullscreen aim</button>
+          </div>
+          <button id="fireBtn" type="button" aria-label="Fire">fire</button>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+        <button class="rbtn" id="btnBackPlan" type="button">← back to plan</button>
+        <span class="lock-wrap" id="lockWrap">
+          <button class="rbtn" id="btnResults" type="button" disabled>see my report card</button>
+          <span class="lock-pop" id="lockPop" role="status"></span>
+        </span>
+      </div>
+    </section>
+
+    <!-- ============ STEP 4: ANALYTICS ============ -->
+    <section id="stepResults" class="hidden">
+      <h1 class="stage-title">YOUR <span class="accent">REPORT CARD</span></h1>
+      <div class="card" id="resCard">
+        <div class="res-head">
+          <img id="resRankIcon" alt="rank icon" width="256" height="256" />
+          <div>
+            <h2 id="resRankName">RANK</h2>
+            <p class="pun" id="resPun"></p>
+            <p class="tot" id="resTotal"></p>
+          </div>
+        </div>
+        <div class="res-grid" id="resGrid"></div>
+        <div class="overview" id="overview"></div>
+
+        <div class="bench-table" id="benchTable"></div>
+
+        <div class="sens-box">
+          <b>sensitivity verdict</b>
+          <p id="sensVerdictTxt"></p>
+        </div>
+        <div class="tips" id="resTips"></div>
+      </div>
+
+      <div style="margin-top:22px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+        <button class="rbtn rbtn--solid" id="btnAgain" type="button">run it back</button>
+        <button class="rbtn" id="btnShare" type="button">copy my results</button>
+        <a class="rbtn" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">heal with youtube</a>
+      </div>
+      <p class="foot-note">scores are saved in your browser. beat them. that's the whole meta. <a href="index.html" data-nav>main page</a></p>
+    </section>
+  </main>
+
+  <!-- no site menu on the range page, per design -->
+
+  <script>
+    (() => {
+      'use strict';
+
+      const $ = (s) => document.querySelector(s);
+      const TIER = 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04';
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* ============ custom cursor + click sparks (same as the main page) ============ */
+      const cur = document.getElementById('cur');
+      const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (!finePointer && cur) cur.remove();
+      if (finePointer && !reducedMotion && cur) {
+        let cx = -100, cy = -100, shown = false;
+        window.addEventListener('mousemove', (e) => {
+          /* pointer lock freezes clientX/Y — the in-game crosshair takes over */
+          if (document.pointerLockElement) return;
+          cx = e.clientX; cy = e.clientY;
+          if (!shown) { shown = true; cur.classList.add('is-visible'); }
+        }, { passive: true });
+        (function tick() {
+          if (cur.__x !== cx || cur.__y !== cy) { cur.__x = cx; cur.__y = cy; cur.style.transform = 'translate3d(' + cx + 'px,' + cy + 'px,0)'; }
+          requestAnimationFrame(tick);
+        })();
+        /* delegated, so controls created later (survey chips, plan buttons, overlays)
+           behave the same: over anything clickable the native pointer takes over —
+           never two cursors at once, never a stuck-invisible cursor. */
+        const overControl = (t) => !!(t && t.closest && t.closest('a, button, input, select, label'));
+        document.addEventListener('mouseover', (e) => { if (overControl(e.target)) cur.classList.add('is-hidden'); }, { passive: true });
+        document.addEventListener('mouseout', (e) => {
+          if (overControl(e.target) && !overControl(e.relatedTarget)) cur.classList.remove('is-hidden');
+        }, { passive: true });
+      }
+      if (!reducedMotion) {
+        window.addEventListener('pointerdown', (e) => {
+          if (document.pointerLockElement) return; /* mid-run the crosshair shoots, no sparks */
+          for (let i = 0; i < 7; i++) {
+            const s = document.createElement('span');
+            s.className = 'spark';
+            const ang = Math.random() * Math.PI * 2;
+            const dist = 22 + Math.random() * 30;
+            s.style.left = e.clientX + 'px';
+            s.style.top = e.clientY + 'px';
+            s.style.setProperty('--sx', Math.cos(ang) * dist + 'px');
+            s.style.setProperty('--sy', Math.sin(ang) * dist + 'px');
+            /* fullscreen only renders the shell's subtree — park sparks there too */
+            (document.fullscreenElement || document.body).appendChild(s);
+            setTimeout(() => s.remove(), 550);
+          }
+        }, { passive: true });
+      }
+
+      /* ============ fullscreen: available at all times on the range ============ */
+      /* fullscreen the whole page, not the shell: the report card below the range
+         needs to scroll too, and a fullscreened shell clips everything under it */
+      let escWantsFullscreen = false; /* see the fullscreenchange handler below */
+      const fsTarget = document.querySelector('.range-shell') || document.documentElement;
+      const fsButtons = [document.getElementById('ovFs')].filter(Boolean);
+      /* esc inside fullscreen is the browser's to take: it drops fullscreen before we
+         ever see the key. we want the opposite — pause, stay big — so we flag the
+         intent on keydown and then put the range straight back into fullscreen.
+         the flag is consumed by exactly one fullscreenchange. */
+      if (fsTarget.requestFullscreen && fsButtons.length) {
+        const enterFs = () => {
+          const p = fsTarget.requestFullscreen({ navigationUI: 'hide' });
+          if (p && p.catch) p.catch(() => { try { fsTarget.requestFullscreen(); } catch (e) {} });
+        };
+        const exitFs = () => { if (document.fullscreenElement) document.exitFullscreen(); };
+        const toggleFs = () => {
+          escWantsFullscreen = false;
+          if (document.fullscreenElement) exitFs();
+          else enterFs();
+        };
+        fsButtons.forEach((b) => b.addEventListener('click', toggleFs));
+        document.addEventListener('fullscreenchange', () => {
+          const on = !!document.fullscreenElement;
+          fsButtons.forEach((b) => { b.textContent = on ? 'exit fullscreen' : 'fullscreen aim'; });
+          /* body-level cursor survives page fullscreen, so it just keeps following */
+          setTimeout(() => { sizeRange(); resizeXhLayer(); }, 120);
+          if (escWantsFullscreen && !on) {
+            escWantsFullscreen = false;
+            /* the browser dropped fullscreen for our pause esc — take it back so the
+               player stays fullscreen; the pause menu is already up */
+            enterFs();
+            return;
+          }
+          if (!on && playing && !paused) {
+            escStamp = performance.now();
+            pauseRun();
+          }
+        });
+        window.__fsExit = exitFs;
+        window.__fsState = () => document.fullscreenElement;
+      } else fsButtons.forEach((b) => b.remove());
+
+      /* no page transition any more: every data-nav link just navigates. */
+
+      /* ================= data ================= */
+      const RANKS = [
+        { id: 'iron', label: 'Iron', tier: 5, n: 'baby steps', base: 0 },
+        { id: 'bronze', label: 'Bronze', tier: 8, n: 'getting better', base: 0 },
+        { id: 'silver', label: 'Silver', tier: 11, n: 'not bad', base: 0 },
+        { id: 'gold', label: 'Gold', tier: 14, n: 'the classic', base: 1 },
+        { id: 'plat', label: 'Platinum', tier: 17, n: 'respectable', base: 1 },
+        { id: 'diamond', label: 'Diamond', tier: 20, n: 'ego arc', base: 2 },
+        { id: 'asc', label: 'Ascendant', tier: 23, n: 'getting serious', base: 2 },
+        { id: 'imm', label: 'Immortal', tier: 26, n: 'like me', base: 3 },
+        { id: 'rad', label: 'Radiant', tier: 27, n: 'why are you here 💀', base: 3 }
+      ];
+
+      const DIFFS = [
+        { id: 0, label: 'Iron lobby warmup', short: 'rookie', desc: 'giant targets, zero stress. pure warmup vibes.', size: 1.5, respawn: 0.5, pts: 60, track: 0.65, medal: 'pat on the head difficulty' },
+        { id: 1, label: 'Ranked lobby', short: 'ranked', desc: 'the standard grind. honest targets, honest times.', size: 1.0, respawn: 1.0, pts: 100, track: 1.0, medal: 'the classic ranked feel' },
+        { id: 2, label: 'Asc lobby', short: 'ascendant', desc: 'small targets, quick swaps. no freebies.', size: 0.72, respawn: 1.4, pts: 150, track: 1.3, medal: 'targets have an ego now' },
+        { id: 3, label: 'Radiant trials', short: 'radiant', desc: 'tiny, fast, merciless. good luck champion.', size: 0.52, respawn: 2.0, pts: 220, track: 1.65, medal: 'this diff is genuinely evil' }
+      ];
+
+      const BENCH = [
+        { min: 15000, tier: 27, name: 'RADIANT', pun: 'OMG ur better than me (nah not really)' },
+        { min: 12000, tier: 26, name: 'IMMORTAL', pun: 'ok ok we might be related' },
+        { min: 10000, tier: 23, name: 'ASCENDANT', pun: 'certified kixot trainee' },
+        { min: 8000, tier: 20, name: 'DIAMOND', pun: 'diamond hands, diamond aim' },
+        { min: 6800, tier: 17, name: 'PLATINUM', pun: 'plat patrol reporting for duty' },
+        { min: 5600, tier: 14, name: 'GOLD', pun: 'gold. shiny. like my future' },
+        { min: 4400, tier: 11, name: 'SILVER', pun: 'aim still buffering' },
+        { min: 2400, tier: 8, name: 'BRONZE', pun: 'bronze is just iron with confidence' },
+        { min: -1, tier: 5, name: 'IRON', pun: 'the targets send their regards' }
+      ];
+      /* per-run benchmarks: flick + precision use the full rank ladder on solo runs.
+         tracking is hold-scored (140/sec, 30s cap ~4.2k) so it gets its own honest ladder. */
+      const BENCH_TRACK = [
+        { min: 2500, tier: 27, name: 'RADIANT', pun: BENCH[0].pun },
+        { min: 2000, tier: 26, name: 'IMMORTAL', pun: BENCH[1].pun },
+        { min: 1600, tier: 23, name: 'ASCENDANT', pun: BENCH[2].pun },
+        { min: 1300, tier: 20, name: 'DIAMOND', pun: BENCH[3].pun },
+        { min: 1100, tier: 17, name: 'PLATINUM', pun: BENCH[4].pun },
+        { min: 900, tier: 14, name: 'GOLD', pun: BENCH[5].pun },
+        { min: 650, tier: 11, name: 'SILVER', pun: BENCH[6].pun },
+        { min: 300, tier: 8, name: 'BRONZE', pun: BENCH[7].pun },
+        { min: -1, tier: 5, name: 'IRON', pun: BENCH[8].pun }
+      ];
+      const runBenchFor = (m) => (m === 'track' ? BENCH_TRACK : BENCH);
+
+      const GOALS = [
+        { id: 'flicks', label: 'Flicks' },
+        { id: 'precision', label: 'Precision' },
+        { id: 'tracking', label: 'Tracking' },
+        { id: 'sens', label: 'Sens / aim feel' },
+        { id: 'consistency', label: 'Consistency' }
+      ];
+      const DIFF_CHOICE = [
+        { id: -1, label: 'easier than my rank' },
+        { id: 0, label: 'exactly my rank level' },
+        { id: 1, label: 'harder than my rank' }
+      ];
+      const HOURS = ['0 to 5', '5 to 15', '15 to 30', '30+'];
+      const SENSFEEL = ['too fast', 'just right', 'too slow', 'no idea'];
+
+      const answers = { rank: null, goals: new Set(), diffChoice: 0, hours: null, sens: null };
+      let diff = DIFFS[1];
+      let session = null; // { list: [{mode,label,set,n}], idx, count, guided: bool }
+
+      const rankBase = () => (RANKS.find((r) => r.id === answers.rank) || { base: 1 }).base;
+      const applyDifficulty = () => {
+        const want = Math.max(0, Math.min(DIFFS.length - 1, rankBase() + (answers.diffChoice || 0)));
+        diff = DIFFS[want];
+        document.querySelectorAll('#optDiffLive .opt').forEach((b) =>
+          b.classList.toggle('is-on', +b.dataset.v === want));
+      };
+
+      const buildOpts = (el, items, multi, onPick) => {
+        items.forEach((it) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'opt';
+          if (typeof it === 'string') { b.textContent = it; b.dataset.v = it; }
+          else {
+            b.innerHTML = (it.tier ? '<img src="' + TIER + '/' + it.tier + '/smallicon.png" alt="" width="256" height="256" fetchpriority="low" decoding="async" />' : '') +
+              it.label + (it.n ? ' <span style="opacity:.82">' + it.n + '</span>' : '');
+            b.dataset.v = it.id;
+          }
+          b.addEventListener('click', () => {
+            if (multi) { b.classList.toggle('is-on'); }
+            else { el.querySelectorAll('.opt').forEach((o) => o.classList.remove('is-on')); b.classList.add('is-on'); }
+            onPick(b);
+          });
+          el.appendChild(b);
+        });
+      };
+
+      const refreshSurvey = () => {
+        const ok = answers.rank && answers.hours && answers.sens && answers.goals.size > 0;
+        $('#btnPlan').disabled = !ok;
+        $('#surveyHint').textContent = ok ? 'locked in'
+          : (!answers.rank ? 'pick a rank to start'
+          : answers.goals.size === 0 ? 'now pick at least one goal'
+          : (!answers.hours || !answers.sens) ? 'almost there' : '');
+      };
+
+      buildOpts($('#qRank'), RANKS, false, (b) => { answers.rank = b.dataset.v; applyDifficulty(); refreshSurvey(); });
+      buildOpts($('#qGoal'), GOALS, true, () => {
+        answers.goals.clear();
+        $('#qGoal').querySelectorAll('.opt.is-on').forEach((o) => answers.goals.add(o.dataset.v));
+        refreshSurvey();
+      });
+      buildOpts($('#qDiff'), DIFF_CHOICE, false, (b) => { answers.diffChoice = +b.dataset.v; applyDifficulty(); refreshSurvey(); });
+      buildOpts($('#qHours'), HOURS, false, (b) => { answers.hours = b.dataset.v; refreshSurvey(); });
+      buildOpts($('#qSens'), SENSFEEL, false, (b) => { answers.sens = b.dataset.v; refreshSurvey(); });
+
+      buildOpts($('#optDiffLive'), DIFFS.map((d) => ({ id: d.id, label: d.label })), false, (b) => {
+        diff = DIFFS[+b.dataset.v];
+        if (!playing && !paused && scene) { clearTargets(); for (let i = 0; i < MODES[mode].field; i++) spawnTarget(); }
+      });
+
+      /* ================= plan + session ================= */
+      const PLAN_LIBRARY = {
+        flicks: { name: 'Flick discipline', tag: 'flick range', desc: '2 flick runs daily. turn, click, dont think. thinking is for controllers.' },
+        precision: { name: 'Micro precision', tag: 'precision range', desc: 'small targets, slow is smooth, smooth is fast. 2 runs minimum.' },
+        tracking: { name: 'Tracking', tag: 'tracking range', desc: 'chase the bot and never let go. 3 runs. glue hands by friday.' },
+        sens: { name: 'Sens calibration', tag: 'settings', desc: 'run the same mode at 3 sens values, keep the one that feels boring (boring = consistent).' },
+        consistency: { name: 'Consistency', tag: 'any mode', desc: 'same mode, same time, every day. the report card will snitch on you.' }
+      };
+      /* guided workout steps per goal: mode + how many runs */
+      const WORKOUT = {
+        flicks: { mode: 'flick', runs: 2 },
+        precision: { mode: 'precision', runs: 2 },
+        tracking: { mode: 'track', runs: 3 },
+        sens: { mode: 'flick', runs: 1 },
+        consistency: { mode: 'precision', runs: 1 }
+      };
+
+      /* plain-english name for a mode, used everywhere the guide talks about itself */
+      const modeLabel = (m) => ({ flick: 'flick', precision: 'precision', track: 'tracking' }[m] || m);
+      /* the guide names its picks and nothing more: "2 flick runs and 3 tracking runs".
+         no dashes, no pep talks, just the counts */
+      const describeWorkout = (list) => {
+        const parts = list.map((s) => s.runs + ' ' + modeLabel(s.mode) + ' run' + (s.runs === 1 ? '' : 's'));
+        if (parts.length <= 1) return parts[0] || '';
+        return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+      };
+
+      $('#btnPlan').addEventListener('click', () => {
+        applyDifficulty();
+        const grid = $('#planGrid');
+        grid.innerHTML = '';
+        [...answers.goals].forEach((g) => {
+          const p = PLAN_LIBRARY[g];
+          const d = document.createElement('div');
+          d.className = 'plan-item';
+          d.innerHTML = '<span class="tag">' + p.tag + '</span><h3>' + p.name + '</h3><p>' + p.desc + '</p>';
+          grid.appendChild(d);
+        });
+        const base = document.createElement('div');
+        base.className = 'plan-item';
+        base.innerHTML = '<span class="tag">always</span><h3>Warm up first</h3><p>one flick run, one precision run, then touch grass (optional).</p>';
+        grid.appendChild(base);
+        const dItem = document.createElement('div');
+        dItem.className = 'plan-item';
+        dItem.innerHTML = '<span class="tag">difficulty</span><h3>' + diff.label + '</h3><p>' + diff.desc + '</p>';
+        grid.appendChild(dItem);
+
+        const rankName = (RANKS.find((r) => r.id === answers.rank) || {}).label || '?';
+        const roasts = {
+          iron: 'iron to radiant speedrun, any%, no cheats',
+          bronze: 'bronze is just iron with confidence.',
+          silver: 'silver: where aim goes to hibernate',
+          gold: 'gold. the grind is real and so is the suffering.',
+          plat: 'plat, the rank of "i almost had it"',
+          diamond: 'diamond ego vs diamond aim, fight',
+          asc: 'ascendant, aka immortal waiting room.',
+          imm: 'immortal crew checking in we train anyway.',
+          rad: 'radiant using my trainer? mom come pick me up im famous'
+        };
+        $('#planRoast').textContent = roasts[answers.rank] || '';
+
+        // build the guided session from the plan
+        const list = [];
+        [...answers.goals].forEach((g) => {
+          const w = WORKOUT[g];
+          if (!w) return;
+          const existing = list.find((s) => s.mode === w.mode);
+          if (existing) existing.runs = Math.min(4, existing.runs + w.runs - 1);
+          else list.push({ mode: w.mode, runs: w.runs });
+        });
+        if (!list.length) list.push({ mode: 'flick', runs: 2 });
+        session = { list, idx: 0, count: 0, guided: true, done: false };
+        const total = list.reduce((a, s) => a + s.runs, 0);
+        /* the guide line spells out the exercises it picked, with counts */
+        const gl = $('#guideList');
+        if (gl) gl.textContent = describeWorkout(list);
+
+        $('#stepSurvey').classList.add('hidden');
+        $('#stepPlan').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      const enterRange = (guided) => {
+        if (session) { session.guided = guided; session.idx = 0; session.count = 0; session.done = false; }
+        updateSessionBanner();
+        /* guided: land on the plan's FIRST exercise. plan says 3× tracking? the range
+           opens on TRACKING. never auto flick, the guide owns the order. */
+        if (guided && session && session.list && session.list.length) {
+          const first = document.querySelector('.mode-btn[data-mode="' + session.list[0].mode + '"]');
+          if (first && !first.disabled) first.click();
+        }
+        $('#stepPlan').classList.add('hidden');
+        $('#stepSettings').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => { sizeRange(); resizeXhLayer(); }, 80);
+      };
+      $('#btnGuided').addEventListener('click', () => enterRange(true));
+      $('#btnFree').addEventListener('click', () => enterRange(false));
+      $('#btnRedo').addEventListener('click', () => {
+        $('#stepPlan').classList.add('hidden');
+        $('#stepSurvey').classList.remove('hidden');
+      });
+      $('#btnBackPlan').addEventListener('click', () => {
+        $('#stepSettings').classList.add('hidden');
+        $('#stepPlan').classList.remove('hidden');
+      });
+      $('#btnResults').addEventListener('click', () => {
+        $('#stepSettings').classList.add('hidden');
+        $('#stepResults').classList.remove('hidden');
+        buildResults();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      /* locked report card: stays greyed until earned. hovering the wrapper pops the
+         right note for the session you picked (guide vs individual). */
+      const lockWrap = $('#lockWrap');
+      const lockPop = $('#lockPop');
+      const btnResultsEl = $('#btnResults');
+      if (lockWrap && lockPop && btnResultsEl) {
+        const syncLock = () => lockWrap.classList.toggle('is-locked', btnResultsEl.disabled);
+        new MutationObserver(syncLock).observe(btnResultsEl, { attributes: true, attributeFilter: ['disabled'] });
+        syncLock();
+        const fillLockPop = () => {
+          lockPop.textContent = (session && session.guided)
+            ? 'guided: complete the guide to unlock your report card'
+            : 'individual: complete each exercise once to unlock your report card';
+        };
+        lockWrap.addEventListener('pointerenter', fillLockPop);
+        lockWrap.addEventListener('focusin', fillLockPop);
+      }
+
+      /* the guide leads, but it never locks anyone out: every mode stays playable.
+         only a LIVE run locks the buttons. while paused they stay live so the
+         player can bail out to another exercise (that run's progress is lost). */
+      const syncModeButtons = () => {
+        const live = playing && !paused;
+        document.querySelectorAll('.mode-btn').forEach((b) => {
+          b.disabled = live;
+        });
+      };
+
+      const updateSessionBanner = () => {
+        const b = $('#sessionBanner');
+        syncModeButtons();
+        if (!session || !session.guided) { b.classList.remove('is-on'); return; }
+        const step = session.list[session.idx];
+        /* the guide leads and names the exercise it picked so the player knows what
+           to aim at */
+        b.textContent = 'guided · ' + modeLabel(step.mode) + ' run ' + (session.count + 1) + '/' + step.runs + ' · workout ' + (session.idx + 1) + '/' + session.list.length;
+        b.classList.add('is-on');
+      };
+
+      const sessionAdvance = () => {
+        if (!session || !session.guided) return null;
+        const step = session.list[session.idx];
+        session.count++;
+        if (session.count < step.runs) { updateSessionBanner(); return step.mode; }
+        session.count = 0;
+        session.idx++;
+        if (session.idx >= session.list.length) { session.idx = 0; session.done = true; updateSessionBanner(); return 'done'; }
+        updateSessionBanner();
+        return session.list[session.idx].mode;
+      };
+
+      /* ================= settings ================= */
+      const settings = { color: '#ffffff', style: 'cross', outline: false, len: 4, thick: 1, gap: 2, sens: 0.4 };
+      /* ---- valorant sens math, exact ----
+         valorant turns 0.07 degrees per mouse COUNT per sens point, on raw input.
+         with unadjustedMovement (requested above) the browser hands over raw counts
+         in movementX — so one count here is one count in valorant. no dpi factor,
+         no display scaling, no feel tweaks: same number in, same turn out. */
+      const VA_YAW = 0.07;
+      const degPerCount = (s) => VA_YAW * s;
+      try {
+        const saved = JSON.parse(localStorage.getItem('kixot_sens') || 'null');
+        if (saved && saved.sens) {
+          settings.sens = saved.sens;
+        }
+      } catch (e) { /* fresh start */ }
+
+      /* one pass paints the whole reticle in a single colour. "outline" = a fat dark
+         pass laid down first, so the crosshair stays readable even on a bright target. */
+      const paintXh = (g, cx, cy, L, G, dotR, w, col) => {
+        g.strokeStyle = col; g.fillStyle = col; g.lineWidth = w;
+        if (settings.style === 'dot' || settings.style === 'tdot') { g.beginPath(); g.arc(cx, cy, dotR(w), 0, Math.PI * 2); g.fill(); }
+        if (settings.style === 'circle') { g.beginPath(); g.arc(cx, cy, G + L, 0, Math.PI * 2); g.stroke(); }
+        if (settings.style === 'cross' || settings.style === 'tdot') {
+          g.beginPath();
+          g.moveTo(cx - G - L, cy); g.lineTo(cx - G, cy);
+          g.moveTo(cx + G, cy); g.lineTo(cx + G + L, cy);
+          g.moveTo(cx, cy - G - L); g.lineTo(cx, cy - G);
+          g.moveTo(cx, cy + G); g.lineTo(cx, cy + G + L);
+          g.stroke();
+        }
+        if (settings.style === 'outline') {
+          g.beginPath();
+          g.rect(cx - G - L, cy - w / 2, L, w);
+          g.rect(cx + G, cy - w / 2, L, w);
+          g.rect(cx - w / 2, cy - G - L, w, L);
+          g.rect(cx - w / 2, cy + G, w, L);
+          g.stroke();
+        }
+      };
+      const drawXh = () => {
+        const c = $('#xhCanvas');
+        const g = c.getContext('2d');
+        const S = 152, cx = S / 2, cy = S / 2;
+        const L = settings.len * 4, G = settings.gap * 4, T = Math.max(1.5, settings.thick * 2);
+        g.clearRect(0, 0, S, S);
+        g.shadowColor = 'transparent'; g.shadowBlur = 0;
+        if (settings.outline) paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w), T + 3, '#000000');
+        paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w), T, settings.color);
+        g.shadowBlur = 0;
+        updateEdpi();
+      };
+      const updateEdpi = () => {
+        $('#sensLabel').textContent = settings.sens.toFixed(2);
+        const note = $('#sensNote');
+        if (note) note.textContent = '';
+      };
+
+      const buildChips = (el, pairs, onPick) => {
+        pairs.forEach((p) => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'opt'; b.textContent = p[1]; b.dataset.v = p[0];
+          b.addEventListener('click', () => {
+            el.querySelectorAll('.opt').forEach((o) => o.classList.remove('is-on'));
+            b.classList.add('is-on');
+            onPick(p[0]);
+          });
+          el.appendChild(b);
+        });
+      };
+
+      /* every crosshair control updates BOTH the preview and the live overlay */
+      const updateCrosshairs = () => { drawXh(); drawXhLayer(); };
+
+      buildChips($('#optColor'), [
+        ['#ffffff', 'white'], ['#00ff88', 'green'], ['#00e5ff', 'cyan'],
+        ['#ffe600', 'yellow'], ['#ff2d95', 'magenta'], ['#ff3b3b', 'red']
+      ], (v) => { settings.color = v; updateCrosshairs(); });
+      buildChips($('#optStyle'), [['cross', '✚ cross'], ['dot', '• dot'], ['tdot', '✚ dot center'], ['circle', '◯ circle'], ['outline', '▢ outline']], (v) => { settings.style = v; updateCrosshairs(); });
+      buildChips($('#optOutline'), [['off', 'off'], ['on', 'on']], (v) => { settings.outline = v === 'on'; updateCrosshairs(); });
+      $('#optColor').children[0].classList.add('is-on');
+      $('#optStyle').children[0].classList.add('is-on');
+      $('#optOutline').children[0].classList.add('is-on');
+
+      const bindRange = (id, valId, key, fmt) => {
+        const r = $(id);
+        r.addEventListener('input', () => {
+          settings[key] = parseInt(r.value, 10);
+          $(valId).textContent = fmt(settings[key]);
+          updateCrosshairs();
+        });
+      };
+      bindRange('#rngLen', '#valLen', 'len', (v) => v);
+      bindRange('#rngThick', '#valThick', 'thick', (v) => v);
+      bindRange('#rngGap', '#valGap', 'gap', (v) => v);
+
+      $('#rngSens').addEventListener('input', () => {
+        settings.sens = parseInt($('#rngSens').value, 10) / 100;
+        $('#valSens').textContent = settings.sens.toFixed(2);
+        updateEdpi();
+        try { localStorage.setItem('kixot_sens', JSON.stringify({ sens: settings.sens })); } catch (e) {}
+      });
+      drawXh();
+      /* restore saved dpi + sens into the ui */
+      (function restoreSens() {
+        $('#rngSens').value = Math.round(settings.sens * 100);
+        $('#valSens').textContent = settings.sens.toFixed(2);
+        updateEdpi();
+      })();
+
+      /* ================= live crosshair overlay ================= */
+      const xhLayer = $('#xhLayer');
+      const resizeXhLayer = () => {
+        const w = xhLayer.clientWidth, h = xhLayer.clientHeight;
+        if (w && h && (xhLayer.width !== w || xhLayer.height !== h)) { xhLayer.width = w; xhLayer.height = h; }
+        drawXhLayer();
+      };
+      const drawXhLayer = () => {
+        if (!xhLayer.width || !xhLayer.height) return;
+        const g = xhLayer.getContext('2d');
+        const cx = xhLayer.width / 2, cy = xhLayer.height / 2;
+        const L = settings.len * 2, G = settings.gap * 2, T = Math.max(1.5, settings.thick * 1.5);
+        g.clearRect(0, 0, xhLayer.width, xhLayer.height);
+        g.shadowColor = 'transparent'; g.shadowBlur = 0;
+        if (settings.outline) paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w * 0.8), T + 3, '#000000');
+        paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w * 0.8), T, settings.color);
+        g.shadowBlur = 0;
+      };
+      window.addEventListener('resize', resizeXhLayer);
+
+      /* ================= 3D range ================= */
+      const MODES = {
+        flick:     { name: ['FLICK', 'RANGE'],     desc: 'bring out your inner you.', dur: 30, field: 3, size: 0.55 },
+        precision: { name: ['PRECISION', 'RANGE'], desc: 'bring out your inner you.', dur: 30, field: 3, size: 0.3 },
+        track:     { name: ['TRACKING', 'RANGE'],  desc: 'bring out your inner you.', dur: 30, field: 1, size: 0.6 }
+      };
+
+      const canvas3d = $('#range3d');
+      const overlay = $('#overlay');
+      const ovTitle = $('#ovTitle');
+      const ovDesc = $('#ovDesc');
+      const ovBig = $('#ovBig');
+      const ovMsg = $('#ovMsg');
+      const ovRank = $('#ovRank');
+      const ovNext = $('#ovNext');
+      const ovBtn = $('#ovBtn');
+      const ovBtn2 = $('#ovBtn2');
+      const hudScore = $('#hudScore');
+      const hudTime = $('#hudTime');
+      const hudAcc = $('#hudAcc');
+      const hudStreak = $('#hudStreak');
+      const rangeNote = $('#rangeNote');
+      const fireBtn = $('#fireBtn');
+      const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+      let renderer = null, scene = null, camera = null, gun = null;
+      let yaw = 0, pitch = 0;
+      let playing = false, locked = false, paused = false;
+      /* true only while the 3-2-1 is on screen. the 30s exercise clock is held
+         until this clears, so the countdown never eats into the run. */
+      let counting = false;
+      let mode = 'flick';
+      let score = 0, hits = 0, shots = 0, streak = 0, bestStreak = 0, onT = 0, timeLeft = 30;
+      let targets = [];
+      let stats = { flick: null, precision: null, track: null };
+      let lastT = 0, rafId = null, countdownTimer = null, lockPending = false;
+      let holding = false;
+
+      /* valorant has NO yaw limit: you can spin all day, and big tracking turns are
+         normal. the old hard ±180° wall silently swallowed every further mouse
+         movement once you reached it, which reads as "my aim feels slow/stuck".
+         pitch still stops at valorant's ~89° so you can't flip over. */
+      const PITCH_LIMIT = 89 * Math.PI / 180;
+      const clampPitch = () => { pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch)); };
+
+      /* pointer lock can be blocked right after esc (browser cooldown). never let it throw.
+         unadjustedMovement:1 asks chrome to skip the os mouse accel (enhance pointer
+         precision) for this pointer — raw counts like valorant. browsers that don't
+         support it just take the normal path, everything still works. */
+      const safeLock = () => {
+        const lockOpts = { unadjustedMovement: true };
+        let p;
+        try {
+          p = canvas3d.requestPointerLock(lockOpts);
+        } catch (e) {
+          try { p = canvas3d.requestPointerLock(); } catch (e2) { return; }
+        }
+        if (p && p.catch) p.catch(() => { try { canvas3d.requestPointerLock(); } catch (e) {} });
+      };
+
+      const sizeRange = () => {
+        if (!renderer) return;
+        const w = canvas3d.clientWidth, h = canvas3d.clientHeight;
+        if (!w || !h) return;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        /* THE sens feel fix: valorant's 103 degrees is HORIZONTAL fov. three.js fov is
+           vertical. a 103 vertical fov on 16:9 is ~132 horizontal — the world looked
+           shrunk and every turn felt way slower than valorant at the same sens.
+           derive the vertical fov that yields exactly 103 horizontal at this aspect. */
+        const hFov = 103 * Math.PI / 180;
+        camera.fov = 2 * Math.atan(Math.tan(hFov / 2) / camera.aspect) * 180 / Math.PI;
+        camera.updateProjectionMatrix();
+      };
+
+      /* three.js is ~600kb and the survey takes a while, so it only loads when
+         the range actually appears. loadThree() injects the script once and
+         resolves when THREE is ready. if the cdn fails we fail soft and the
+         rest of the page keeps working. */
+      let threeLoad = null;
+      const loadThree = () => {
+        if (window.THREE) return Promise.resolve();
+        if (threeLoad) return threeLoad;
+        threeLoad = new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+          s.onload = () => resolve();
+          s.onerror = () => { threeLoad = null; reject(new Error('three.js cdn unreachable')); };
+          document.head.appendChild(s);
+        });
+        return threeLoad;
+      };
+
+      const init3d = () => {
+        if (!window.THREE) return; /* loadThree() has not finished yet */
+        if (renderer) return;
+        /* antialias only on low-dpi screens: at high dpr it's invisible and just eats frames */
+        const dpr = window.devicePixelRatio || 1;
+        renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: dpr < 1.5, powerPreference: 'high-performance' });
+        /* cap pixel ratio: phones at dpr 3 were rendering 9x the pixels. that was the stutter */
+        renderer.setPixelRatio(Math.min(dpr, 1.75));
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.Fog(0x000000, 24, 70);
+
+        /* 103 here is a placeholder; sizeRange() pins the fov to valorant's exact
+           103 horizontal degrees for the current aspect ratio on every resize */
+        camera = new THREE.PerspectiveCamera(71, 2, 0.1, 200);
+        camera.position.set(0, 1.6, 6);
+        camera.rotation.order = 'YXZ';
+        camera.rotation.set(pitch, yaw, 0);
+
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x000000, 0.75));
+        const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+        dir.position.set(5, 10, 4);
+        scene.add(dir);
+        const rim = new THREE.PointLight(0xffffff, 0.55, 34);
+        rim.position.set(0, 3, -14);
+        scene.add(rim);
+
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.95 }));
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        scene.add(new THREE.GridHelper(80, 40, 0x1c1c1c, 0x1c1c1c));
+
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9 });
+        const back = new THREE.Mesh(new THREE.PlaneGeometry(44, 12), wallMat);
+        back.position.set(0, 6, -22);
+        scene.add(back);
+        const wallL = new THREE.Mesh(new THREE.PlaneGeometry(56, 12), wallMat);
+        wallL.position.set(-22, 6, 6); wallL.rotation.y = Math.PI / 2;
+        scene.add(wallL);
+        const wallR = wallL.clone(); wallR.position.x = 22; wallR.rotation.y = -Math.PI / 2;
+        scene.add(wallR);
+
+        const strip = new THREE.Mesh(new THREE.PlaneGeometry(44, 0.09), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        strip.position.set(0, 8.6, -21.9);
+        scene.add(strip);
+        const strip2 = new THREE.Mesh(new THREE.PlaneGeometry(44, 0.05), new THREE.MeshBasicMaterial({ color: 0x555555 }));
+        strip2.position.set(0, 1.1, -21.9);
+        scene.add(strip2);
+
+        gun = new THREE.Group();
+        const metal = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.45, metalness: 0.75 });
+        const dark = new THREE.MeshStandardMaterial({ color: 0x0f0f0f, roughness: 0.6, metalness: 0.4 });
+        const wood = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.05 });
+        const accent = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.4 });
+        const box = (w, h, d, mat, x, y, z, rx) => {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+          m.position.set(x, y, z);
+          if (rx) m.rotation.x = rx;
+          gun.add(m);
+          return m;
+        };
+        box(0.09, 0.13, 0.62, metal, 0, 0, -0.18);
+        box(0.05, 0.05, 0.85, dark, 0, 0.015, -0.95);
+        box(0.085, 0.1, 0.42, dark, 0, -0.005, -0.62);
+        box(0.1, 0.05, 0.16, wood, 0, -0.06, -0.66);
+        box(0.08, 0.11, 0.3, dark, 0, -0.02, 0.22);
+        box(0.08, 0.16, 0.06, wood, 0, -0.07, 0.38, 0.25);
+        box(0.06, 0.22, 0.09, dark, 0, -0.16, -0.06, 0.28);
+        box(0.06, 0.16, 0.08, dark, 0, -0.13, 0.12, 0.4);
+        box(0.02, 0.05, 0.05, accent, 0, 0.09, -0.42);
+        box(0.02, 0.03, 0.02, accent, 0, 0.085, -0.02);
+        gun.position.set(0.34, -0.34, -0.62);
+        gun.rotation.y = -0.06;
+        camera.add(gun);
+        scene.add(camera);
+
+        sizeRange();
+      };
+
+      /* shared geometry + material caches: zero allocations while playing = no gc stutter */
+      const geoCache = {};
+      const matCache = {};
+      const sphereGeo = (r) => {
+        const k = Math.round(r * 100);
+        if (!geoCache[k]) geoCache[k] = new THREE.SphereGeometry(r, 22, 22);
+        return geoCache[k];
+      };
+      const targetMat = (isTrack) => {
+        const k = isTrack ? 'track' : 'ball';
+        if (!matCache[k]) {
+          matCache[k] = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0x444444,
+            emissiveIntensity: 0.6,
+            roughness: 0.35
+          });
+        }
+        return matCache[k];
+      };
+
+      const spawnTarget = () => {
+        const r = MODES[mode].size * diff.size;
+        const isTrack = mode === 'track';
+        const t = new THREE.Mesh(sphereGeo(r), targetMat(isTrack));
+        if (isTrack) {
+          t.position.set(0, 2.1, -14);
+          t.userData = { r, vx: (Math.random() < 0.5 ? -1 : 1) * 2.8 * diff.track, turn: 0, wob: Math.random() * 6 };
+        } else {
+          t.position.set((Math.random() - 0.5) * 22, 1.0 + Math.random() * 4.6, -6 - Math.random() * 13);
+          t.userData = { r };
+        }
+        scene.add(t);
+        targets.push(t);
+      };
+
+      const clearTargets = () => { if (scene) targets.forEach((t) => scene.remove(t)); targets = []; };
+
+      /* sparks share one geometry + one material per burst (they fade in sync) */
+      let sparkGeo = null;
+      const burst = (pos) => {
+        if (!sparkGeo) sparkGeo = new THREE.SphereGeometry(0.05, 6, 6);
+        const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true });
+        for (let i = 0; i < 10; i++) {
+          const s = new THREE.Mesh(sparkGeo, sparkMat);
+          s.position.copy(pos);
+          s.userData = { spark: true, life: 1, mat: sparkMat, v: new THREE.Vector3((Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6) };
+          scene.add(s);
+          targets.push(s);
+        }
+      };
+
+      let raycaster = null; /* created lazily once three.js is actually loaded */
+
+      const shoot = () => {
+        if (!playing || paused) return;
+        if (!raycaster) raycaster = new THREE.Raycaster();
+        shots++;
+        camera.updateMatrixWorld(true);
+        raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+        const balls = targets.filter((t) => t.userData.r);
+        const hitArr = raycaster.intersectObjects(balls, false);
+        if (hitArr.length) {
+          const obj = hitArr[0].object;
+          hits++;
+          streak++;
+          bestStreak = Math.max(bestStreak, streak);
+          if (mode !== 'track') {
+            score += diff.pts + streak * 15;
+            scene.remove(obj);
+            targets = targets.filter((t) => t !== obj);
+            burst(hitArr[0].point);
+            setTimeout(() => { if (playing && !paused) spawnTarget(); }, 200 / diff.respawn);
+          }
+          beep(760 + Math.min(500, streak * 40), 0.06, 'square', 0.05);
+        } else if (mode !== 'track') {
+          streak = 0;
+          beep(140, 0.09, 'sawtooth', 0.04);
+        }
+        updateHud();
+      };
+
+      let hudScoreR = -1;
+      /* every hud write is guarded — rewriting the same string every frame forces style recalc = jank */
+      const setTxt = (el, v) => { if (el.__t !== v) { el.__t = v; el.textContent = v; } };
+      const updateHud = () => {
+        const sc = Math.round(score);
+        if (sc !== hudScoreR) { hudScoreR = sc; hudScore.textContent = sc; }
+        setTxt(hudTime, Math.max(0, timeLeft).toFixed(1));
+        if (mode === 'track') {
+          const elapsed = MODES[mode].dur - Math.max(0, timeLeft);
+          const pct = elapsed > 0.3 ? Math.round(Math.min(1, onT / elapsed) * 100) : 0;
+          setTxt(hudAcc, elapsed > 0.3 ? pct + '%' : '-');
+          setTxt(hudStreak, pct + '%');
+        } else {
+          setTxt(hudAcc, shots ? Math.round(hits / shots * 100) + '%' : '-');
+          setTxt(hudStreak, String(streak));
+        }
+      };
+
+      const beep = (freq, dur, type, vol) => {
+        try {
+          if (!beep.ctx) beep.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = beep.ctx.createOscillator();
+          const g = beep.ctx.createGain();
+          o.type = type || 'square';
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(vol || 0.05, beep.ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.0001, beep.ctx.currentTime + (dur || 0.08));
+          o.connect(g); g.connect(beep.ctx.destination);
+          o.start(); o.stop(beep.ctx.currentTime + (dur || 0.08));
+        } catch (e) { /* shh */ }
+      };
+
+      const loop = (ts) => {
+        rafId = requestAnimationFrame(loop);
+        const dt = Math.min(0.05, (ts - lastT) / 1000 || 0.016);
+        lastT = ts;
+        /* range hidden (survey/plan/results steps): don't burn frames rendering nothing */
+        if (canvas3d.offsetParent === null) return;
+
+        if (gun) {
+          const t = ts / 1000;
+          gun.position.x = 0.34 + Math.sin(t * 1.4) * 0.006;
+          gun.position.y = -0.34 + Math.cos(t * 1.1) * 0.008;
+          gun.position.z += (-0.62 - gun.position.z) * Math.min(1, dt * 9);
+          gun.rotation.x += (0 - gun.rotation.x) * Math.min(1, dt * 8);
+        }
+
+        if (playing && !paused && !counting && (isTouch || locked)) { /* clock only runs with the mouse really locked (touch needs no lock), and never during the 3-2-1 */
+          timeLeft -= dt;
+          if (timeLeft <= 0) { end(); }
+          else {
+            if (mode === 'track' && targets.length) {
+              const t = targets[0];
+              const u = t.userData;
+              u.turn += dt;
+              if (u.turn > 0.9 + Math.random() * 1.2) {
+                u.vx = (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 2.2) * diff.track;
+                u.turn = 0;
+              }
+              t.position.x += u.vx * dt;
+              if (Math.abs(t.position.x) > 12.5) { u.vx *= -1; t.position.x = Math.sign(t.position.x) * 12.5; }
+              u.wob += dt;
+              t.position.y = 2.1 + Math.sin(u.wob * 0.8) * 0.9;
+              if (holding) {
+                camera.updateMatrixWorld(true);
+                if (!raycaster) raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+                if (raycaster.intersectObject(t, false).length) {
+                  onT += dt;
+                  score += 140 * dt;
+                  if (Math.abs(u.vx) < 5.4 * diff.track) u.vx *= 1 + 0.05 * dt;
+                }
+              }
+            }
+            updateHud();
+          }
+        }
+
+        const dead = [];
+        targets.forEach((t) => {
+          if (t.userData.spark) {
+            t.userData.life -= dt * 2.4;
+            t.material.opacity = Math.max(0, t.userData.life);
+            t.userData.v.y -= 9 * dt;
+            t.position.addScaledVector(t.userData.v, dt);
+            if (t.userData.life <= 0) dead.push(t);
+          }
+        });
+        if (dead.length) {
+          dead.forEach((t) => scene.remove(t));
+          /* dispose a burst material once its last spark is gone */
+          const mats = new Set(dead.map((t) => t.userData.mat).filter(Boolean));
+          mats.forEach((m) => {
+            const stillAlive = targets.some((t) => !dead.includes(t) && t.userData.mat === m);
+            if (!stillAlive) m.dispose();
+          });
+          targets = targets.filter((t) => !dead.includes(t));
+        }
+
+        renderer.render(scene, camera);
+      };
+
+      const start = () => {
+        cancelNext();
+        if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); start(); }).catch(() => {}); return; }
+        if (!renderer) init3d();
+        resizeXhLayer();
+        if (beep.ctx && beep.ctx.state === 'suspended') beep.ctx.resume();
+        paused = false;
+        score = 0; hits = 0; shots = 0; streak = 0; bestStreak = 0; onT = 0; holding = false;
+        timeLeft = MODES[mode].dur;
+        clearTargets();
+        for (let i = 0; i < MODES[mode].field; i++) spawnTarget();
+        updateHud();
+        ovNext.textContent = '';
+        syncModeButtons();
+        /* desktop: grab the mouse NOW, during the countdown. the cursor lands on the
+           Start button, so a click-to-lock after countdown would instantly pause the run.
+           locking here means the run always starts clean. */
+        if (!isTouch && !locked) safeLock();
+
+        let count = 3;
+        /* the 30s exercise clock does not exist yet: counting holds the loop off
+           the clock until the 3-2-1 has fully finished */
+        counting = true;
+        ovBig.textContent = count;
+        ovBig.classList.add('is-showing');
+        ovMsg.textContent = '';
+        ovRank.classList.remove('is-showing');
+        overlay.classList.remove('is-hidden');
+        ovBtn.style.visibility = 'hidden';
+        ovBtn2.hidden = true;
+        beep(520, 0.09, 'square', 0.05);
+
+        countdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) { ovBig.textContent = count; beep(520, 0.09, 'square', 0.05); }
+          else {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+            ovBig.classList.remove('is-showing');
+            ovBtn.style.visibility = '';
+            if (!isTouch && !locked) {
+              /* lock never landed (no fresh gesture to grant it). no pause menu:
+                 hold the clock, hide the overlay, and grab the lock on the next
+                 click anywhere. the run resumes the moment it lands */
+              counting = false;
+              overlay.classList.add('is-hidden');
+              playing = true; paused = true;
+              lockPending = true;
+              rangeNote.textContent = 'click anywhere to lock in';
+              updateHud();
+              safeLock();
+              return;
+            }
+            overlay.classList.add('is-hidden');
+            playing = true;
+            paused = false;
+            /* clock starts HERE — after the 3-2-1, not before it */
+            counting = false;
+            lastT = performance.now();
+            updateHud();
+            rangeNote.textContent = isTouch ? 'drag to aim · tap to shoot'
+              : (mode === 'track' ? 'HOLD left mouse on the bot · esc to pause' : 'aiming · click to shoot · esc to pause');
+          }
+        }, 700);
+      };
+
+      /* ---- one pause path for the whole range ----
+         every trigger (escape key, pointer-lock loss, fullscreen exit) calls this,
+         so the overlay always reads Resume and the run's timeLeft/score survive.
+         resumeRun() is the only way back in, and it never resets the clock. */
+      const pauseRun = (msg) => {
+        if (!playing) return;
+        /* already cleanly paused? nothing to do. but if we are parked waiting for the
+           lock (the "click anywhere to lock in" state) esc still opens the menu */
+        if (paused && !lockPending) return;
+        paused = true;
+        lockPending = false;
+        if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+        counting = false;
+        ovBig.classList.remove('is-showing');
+        ovRank.classList.remove('is-showing');
+        ovMsg.textContent = msg || '';
+        ovNext.textContent = '';
+        ovTitle.innerHTML = '<span class="accent">' + MODES[mode].name[0] + '</span> ' + MODES[mode].name[1];
+        ovDesc.textContent = 'paused · ' + Math.max(0, timeLeft).toFixed(1) + 's left · your score is safe';
+        ovBtn.textContent = 'Resume';
+        ovBtn.dataset.action = 'resume';
+        ovBtn.disabled = false;
+        ovBtn.style.visibility = '';
+        ovBtn2.hidden = true;
+        overlay.classList.remove('is-hidden');
+        rangeNote.textContent = isTouch ? 'paused · tap resume' : 'paused · click resume';
+        syncModeButtons();
+      };
+
+      const resumeRun = () => {
+        if (!paused) return;
+        if (isTouch) {
+          paused = false;
+          playing = true;
+          lastT = performance.now();
+          overlay.classList.add('is-hidden');
+          rangeNote.textContent = mode === 'track' ? 'HOLD left mouse on the bot · esc to pause' : 'aiming · click to shoot · esc to pause';
+          return;
+        }
+        /* the browser refuses re-locks for a beat after esc. wait for the lock to
+           ACTUALLY land before unpausing, or we get a frozen cursor mid-run */
+        ovBtn.disabled = true;
+        ovMsg.textContent = 'grabbing your mouse…';
+        lockPending = true;
+        lastT = performance.now();
+        safeLock();
+        setTimeout(() => { /* some browsers fail silently: no lock, no error event */
+          if (lockPending) {
+            lockPending = false;
+            ovBtn.disabled = false;
+            ovBtn.textContent = 'Resume';
+            ovBtn.dataset.action = 'resume';
+            ovMsg.textContent = 'pointer lock blocked · click resume again';
+            overlay.classList.remove('is-hidden');
+          }
+        }, 1600);
+      };
+
+      /* individual mode keeps rolling on its own: 5s after a run ends the next
+         exercise loads and its countdown just goes. clicking either end-of-run
+         button cancels the timer so the player never fights it. */
+      let nextTimer = null;
+      const cancelNext = () => { if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; } };
+      const scheduleNextExercise = (m) => {
+        cancelNext();
+        nextTimer = setTimeout(() => {
+          nextTimer = null;
+          if (playing || paused || document.hidden) return;
+          const b = document.querySelector('.mode-btn[data-mode="' + m + '"]');
+          if (b && !b.disabled) b.click();
+          start();
+          if (!isTouch) safeLock();
+        }, 5000);
+      };
+      const runNextExercise = (m) => {
+        cancelNext();
+        const b = document.querySelector('.mode-btn[data-mode="' + m + '"]');
+        if (b && !b.disabled) b.click();
+        start();
+        if (!isTouch) safeLock();
+      };
+
+      const end = () => {
+        if (!playing) return; /* never score the same run twice (end can fire from the loop and a finish()) */
+        playing = false;
+        paused = false;
+        holding = false;
+        counting = false;
+        lockPending = false;
+        glitchRelock = false;
+        if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+        timeLeft = 0;
+        updateHud();
+        /* hand the cursor back the moment the run ends — no silent screen to escape from */
+        if (!isTouch && locked) document.exitPointerLock();
+        /* no auto-advance any more: the old build silently started the next exercise's
+           countdown 4s after a run ended, which read as a glitch. the end screen now
+           waits for the player ("start next"). */
+        syncModeButtons(); /* run over: every mode button is playable again */
+        const m = MODES[mode];
+        const acc = mode === 'track'
+          ? Math.max(0, Math.min(1, onT / m.dur))
+          : (shots ? hits / shots : 0);
+        stats[mode] = {
+          mode, score: Math.round(score), acc: Math.round(acc * 100),
+          streak: mode === 'track' ? Math.round((onT / m.dur) * 100) : bestStreak,
+          shots, hits, sens: settings.sens, diff: diff.short
+        };
+
+        const s = stats[mode];
+        const rank = runBenchFor(mode).find((r) => s.score >= r.min) || runBenchFor(mode)[runBenchFor(mode).length - 1];
+        ovBig.textContent = s.score;
+        ovBig.classList.add('is-showing');
+        ovRank.src = TIER + '/' + rank.tier + '/largeicon.png';
+        ovRank.classList.add('is-showing');
+        ovMsg.textContent = rank.name + ' pace · ' + rank.pun;
+        ovDesc.textContent = s.acc + '% accuracy · best streak ' + s.streak + ' · ' + diff.short + ' difficulty';
+
+        const done = ['flick', 'precision', 'track'].filter((k) => stats[k]).length;
+        /* guided session: only a run of the step's own mode advances the workout.
+           playing any other mode off-guide is allowed and behaves like a free run */
+        const stepNow = (session && session.guided && session.list) ? session.list[session.idx] : null;
+        if (session && session.guided && stepNow && mode === stepNow.mode) {
+          /* guided owns its own order, so the primary button is already the next
+             exercise and no second button (or auto-roll) is needed */
+          cancelNext();
+          ovBtn2.hidden = true;
+          const nextMode = sessionAdvance();
+          if (nextMode === 'done') {
+            ovNext.textContent = 'workout complete guide finished · report card unlocked';
+            ovBtn.textContent = 'See report card';
+            ovBtn.dataset.action = 'results';
+            $('#btnResults').disabled = false; /* guide complete = card unlocks, even with modes missing */
+          } else if (nextMode) {
+            ovNext.textContent = 'next up: ' + modeLabel(nextMode) + ' run';
+            ovBtn.textContent = 'Next exercise';
+            ovBtn.dataset.action = 'next';
+          } else {
+            ovNext.textContent = '';
+            ovBtn.textContent = 'Run it back';
+            ovBtn.dataset.action = 'same';
+          }
+        } else {
+          /* free mode: report card unlocks after one of each */
+          $('#btnResults').disabled = done < 3;
+          ovNext.textContent = done < 3 ? (done + '/3 done · report card unlocks after one of each (flick · precision · tracking)') : 'all three done · report card unlocked';
+          ovBtn.textContent = done < 3 ? 'Run it back' : 'See report card';
+          ovBtn.dataset.action = done < 3 ? 'same' : 'results';
+          const order = ['flick', 'precision', 'track'];
+          const oi = order.indexOf(mode);
+          if (oi !== -1 && oi < order.length - 1) {
+            /* "next exercise" sits below run it back, and the next one still rolls
+               itself after 5s so the hands never idle */
+            ovBtn2.hidden = false;
+            ovBtn2.textContent = 'next exercise';
+            ovBtn2.dataset.mode = order[oi + 1];
+            scheduleNextExercise(order[oi + 1]);
+          } else ovBtn2.hidden = true;
+        }
+
+        rangeNote.textContent = 'run over · pick your next';
+        overlay.classList.remove('is-hidden');
+        beep(220, 0.22, 'sawtooth', 0.05);
+        setTimeout(() => beep(330, 0.28, 'sawtooth', 0.05), 130);
+      };
+
+      /* ================= analytics ================= */
+      const buildResults = () => {
+        const f = stats.flick, p = stats.precision, t = stats.track;
+        if (!f && !p && !t) return;
+        const solo = [f, p].filter(Boolean);
+        const soloAvg = solo.length ? solo.reduce((a, s) => a + s.score, 0) / solo.length : 0;
+        const tRank = t ? (BENCH_TRACK.find((b) => b.min < 0 || t.score >= b.min) || BENCH_TRACK[BENCH_TRACK.length - 1]) : null;
+        /* the headline rank comes from the runs that actually happened: flick/precision
+           average when we have them, otherwise the tracking pace. no "in progress". */
+        const rank = solo.length
+          ? (BENCH.find((b) => b.min < 0 || soloAvg >= b.min) || BENCH[BENCH.length - 1])
+          : (BENCH.find((b) => tRank && b.name === tRank.name) || BENCH[BENCH.length - 1]);
+        $('#resRankIcon').src = TIER + '/' + rank.tier + '/largeicon.png';
+        $('#resRankName').textContent = rank.name;
+        $('#resPun').textContent = rank.pun;
+        const totals = [];
+        if (f) totals.push('flick ' + f.score.toLocaleString());
+        if (p) totals.push('precision ' + p.score.toLocaleString());
+        if (t) totals.push('tracking ' + t.score.toLocaleString() + ' = ' + tRank.name + ' pace');
+        totals.push('on ' + ((f || p || t).diff || 'ranked') + ' difficulty');
+        $('#resTotal').textContent = totals.join(' · ');
+
+        const grid = $('#resGrid');
+        grid.innerHTML = '';
+        const mk = (h, b, s) => {
+          const d = document.createElement('div');
+          d.className = 'res-card';
+          d.innerHTML = '<h3>' + h + '</h3><b>' + b + '</b><span>' + s + '</span>';
+          grid.appendChild(d);
+        };
+        if (f) mk('Flick score', f.score.toLocaleString(), f.acc + '% acc · streak ' + f.streak);
+        if (p) mk('Precision score', p.score.toLocaleString(), p.acc + '% acc · streak ' + p.streak);
+        if (t) mk('Tracking score', t.score.toLocaleString(), t.acc + '% time on bot');
+        mk('Valorant sens', settings.sens.toFixed(2), 'exact valorant conversion');
+        mk('Shots fired', ((f ? f.shots : 0) + (p ? p.shots : 0)).toLocaleString(), ((f ? f.hits : 0) + (p ? p.hits : 0)) + ' hit overall');
+
+        const rows = [];
+        if (f) rows.push({ h: 'Flicks', acc: f.acc, score: f.score, sub: f.acc + '% acc · ' + f.streak + ' best streak', tip: f.acc >= 60 ? 'turns are crisp. keep them warm.' : 'big moves with the arm, stop with the wrist.' });
+        if (p) rows.push({ h: 'Precision', acc: p.acc, score: p.score, sub: p.acc + '% acc · ' + p.streak + ' best streak', tip: p.acc >= 60 ? 'micro adjustments looking pro.' : 'small targets shaking you? sens might be too fast. or its skill issue (jk).' });
+        if (t) rows.push({ h: 'Tracking', acc: t.acc, score: t.score, sub: t.acc + '% time on bot', tip: t.acc >= 55 ? 'glue hands detected' : 'aim with the arm, correct with the wrist, never stop moving.' });
+        const ov = $('#overview');
+        ov.innerHTML = '';
+        rows.forEach((r) => {
+          const d = document.createElement('div');
+          d.className = 'ov-row';
+          d.innerHTML = '<h3>' + r.h + '</h3><div class="bar"><i></i></div><div class="meta"><span>' + r.sub + '</span><span>' + r.score.toLocaleString() + ' pts</span></div><p>' + r.tip + '</p>';
+          ov.appendChild(d);
+          const bar = d.querySelector('.bar i');
+          bar.style.width = Math.max(3, r.acc) + '%';
+        });
+
+        /* benchmark table: solo requirement per rank + what tracking needs at half weight */
+        const bt = $('#benchTable');
+        bt.innerHTML = '<div class="brow" style="color:var(--text)"><span>rank</span><span>flick / precision avg · tracking</span></div>';
+        const ordered = [...BENCH].reverse();
+        ordered.forEach((b) => {
+          const d = document.createElement('div');
+          d.className = 'brow' + (b.name === rank.name ? ' is-you' : '');
+          const need = b.min < 0 ? '0 (ouch)' : b.min.toLocaleString() + '+';
+          const tr = BENCH_TRACK.find((x) => x.name === b.name);
+          const needT = (b.min < 0 || !tr || tr.min < 0) ? '0 (ouch)' : tr.min.toLocaleString() + '+';
+          d.innerHTML = '<span><img src="' + TIER + '/' + b.tier + '/smallicon.png" alt="" width="256" height="256" loading="lazy" decoding="async" />' + b.name + (b.name === rank.name ? ' ← you' : '') + '</span><span>' + need + ' · ' + needT + '</span>';
+          bt.appendChild(d);
+        });
+
+        let verdict;
+        if (settings.sens > 0.7) verdict = 'sens ' + settings.sens.toFixed(2) + ' is what pros call "a wrist injury". drop to 0.3 to 0.5 for a week. it will feel wrong, then it will feel illegal.';
+        else if (settings.sens > 0.45) verdict = 'sens ' + settings.sens.toFixed(2) + ' is spicy. usable, but micro adjustments get shaky. try 0.35 for cleaner precision.';
+        else if (settings.sens >= 0.25) verdict = 'sens ' + settings.sens.toFixed(2) + ' is the pro zone (most pros sit between 0.25 and 0.45). keep it and build muscle memory.';
+        else if (settings.sens >= 0.15) verdict = 'sens ' + settings.sens.toFixed(2) + ' is low and controlled. great for precision, just warm up those 180s.';
+        else verdict = 'sens ' + settings.sens.toFixed(2) + '?? your mousepad needs a mortgage. nudge up a little if turning feels like a workout.';
+        if (answers.sens === 'too fast' && settings.sens > 0.4) verdict += ' (you said it feels too fast. your hands knew first.)';
+        if (answers.sens === 'too slow' && settings.sens < 0.35) verdict += ' (you said it feels too slow. trust the shoulder, not the sens.)';
+        $('#sensVerdictTxt').textContent = verdict;
+
+        const worst = [...rows].sort((a, b) => a.acc - b.acc)[0] || { h: 'any mode', tip: 'run one and the tips write themselves.' };
+        const nextRank = BENCH[BENCH.indexOf(rank) - 1];
+        const rankIdx = BENCH.indexOf(rank);
+        const tRankIdx = t ? BENCH.findIndex((b) => b.name === tRank.name) : -99;
+        const tips = [
+          { h: 'Fix first: ' + worst.h, b: worst.tip },
+          { h: 'Climb the benchmark', b: nextRank ? (nextRank.name + ' needs ' + nextRank.min.toLocaleString() + ' avg on flick/precision. you are ' + (nextRank.min - soloAvg).toLocaleString() + ' away. that is like ' + Math.ceil((nextRank.min - soloAvg) / 300) + ' good runs. very doable.') : 'you maxed the benchmarks. outside time. grass. touch it.' },
+          { h: 'Balance check', b: !t ? 'flick and precision are dialed in. add a tracking run to balance the whole setup.' : (rankIdx + 2 <= tRankIdx) ? ('your flicks say ' + rank.name + ' but your tracking says ' + tRank.name + '. in game that looks like winning duels but losing crosshair placement while moving. grind track mode.') : (tRankIdx + 2 <= rankIdx) ? 'tracking carries you (' + tRank.name + ') but flicks lag at ' + rank.name + '. stop holding angles, go click heads.' : 'all three modes are in the same tier. balanced setup, rare and beautiful.' },
+          { h: 'Difficulty', b: (diff.id === 3 && soloAvg < 6000) ? 'you volunteered for radiant trials and got humbled, respect. drop to asc lobby until you crack 6k avg.' :
+            (diff.id === 0 && soloAvg > 9000) ? 'bore diff detected, you are smurfing the warmup tier. go up a level, champ.' :
+            'training at ' + diff.label.toLowerCase() + ' (' + diff.medal + '). switch it up anytime in settings.' },
+          { h: 'Crosshair', b: settings.gap > 6 ? 'huge gap crosshair. its fine, but tighter gap = better precision reference. try gap 2 to 4.' : 'crosshair setup looks sane. keep it at head height, thats free kills.' },
+          { h: 'Routine', b: 'one flick + one precision + one track run before ranked. your rank will thank you or at least stop crying.' }
+        ];
+        if (f && p && f.acc < 35 && p.acc < 35) tips.splice(1, 0, { h: 'Big picture', b: 'crosshair placement > raw flicks. half your flicks disappear when the crosshair lives at head height.' });
+        const tipsEl = $('#resTips');
+        tipsEl.innerHTML = '';
+        tips.forEach((tp) => {
+          const d = document.createElement('div');
+          d.className = 'tip';
+          d.innerHTML = '<b>' + tp.h + '</b>' + tp.b;
+          tipsEl.appendChild(d);
+        });
+      };
+
+      $('#btnAgain').addEventListener('click', () => {
+        stats = { flick: null, precision: null, track: null };
+        $('#btnResults').disabled = true;
+        $('#stepResults').classList.add('hidden');
+        $('#stepSettings').classList.remove('hidden');
+        if (session) { session.idx = 0; session.count = 0; }
+        updateSessionBanner();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      const runBack = (preMode) => {
+        stats = { flick: null, precision: null, track: null };
+        $('#btnResults').disabled = true;
+        $('#stepResults').classList.add('hidden');
+        $('#stepSettings').classList.remove('hidden');
+        if (session) { session.guided = false; session.idx = 0; session.count = 0; }
+        updateSessionBanner();
+        if (preMode) {
+          const b = document.querySelector('.mode-btn[data-mode="' + preMode + '"]');
+          if (b && !b.disabled) b.click();
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      $('#btnShare').addEventListener('click', async () => {
+        const f = stats.flick, p = stats.precision, t = stats.track;
+        if (!f && !p && !t) return;
+        const bits = [];
+        if (f) bits.push('flick ' + f.score);
+        if (p) bits.push('precision ' + p.score);
+        if (t) bits.push('tracking ' + t.score);
+        const txt = 'my kixot range report card ' + bits.join(' · ') + ' · sens ' + settings.sens.toFixed(2) + ' · beat me: ' + location.href;
+        try { await navigator.clipboard.writeText(txt); $('#btnShare').textContent = 'copied'; }
+        catch (e) { $('#btnShare').textContent = 'copy failed'; }
+        setTimeout(() => { $('#btnShare').textContent = 'copy my results'; }, 1800);
+      });
+
+      /* ================= mode buttons ================= */
+      document.querySelectorAll('.mode-btn').forEach((b) => {
+        b.addEventListener('click', () => {
+          /* switching exercises from the pause menu drops the current run. say so,
+             so nobody wonders where their score went */
+          const dropped = playing && paused;
+          cancelNext();
+          document.querySelectorAll('.mode-btn').forEach((o) => o.classList.remove('is-active'));
+          b.classList.add('is-active');
+          mode = b.dataset.mode;
+          playing = false; paused = false; counting = false;
+          lockPending = false; glitchRelock = false;
+          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+          holding = false;
+          if (!isTouch && locked) document.exitPointerLock();
+          ovTitle.innerHTML = '<span class="accent">' + MODES[mode].name[0] + '</span> ' + MODES[mode].name[1];
+          ovDesc.textContent = MODES[mode].desc;
+          ovBig.classList.remove('is-showing');
+          ovRank.classList.remove('is-showing');
+          ovMsg.textContent = dropped ? 'switched exercise · that run is gone' : '';
+          ovNext.textContent = '';
+          ovBtn.textContent = 'Start';
+          ovBtn.dataset.action = 'same';
+          ovBtn.disabled = false;
+          ovBtn.style.visibility = '';
+          ovBtn2.hidden = true;
+          overlay.classList.remove('is-hidden');
+          clearTargets();
+          if (scene) for (let i = 0; i < MODES[mode].field; i++) spawnTarget();
+          score = 0; hits = 0; shots = 0; streak = 0; bestStreak = 0; onT = 0; timeLeft = MODES[mode].dur;
+          updateHud();
+          updateSessionBanner();
+          rangeNote.textContent = 'ready · press start';
+        });
+      });
+
+      /* ================= pointer lock + fire =================
+         real valorant sens. the game turns 0.07 degrees per mouse count per sens point
+         with raw input. the browser reports movement in css px and, at the default os
+         pointer speed, 1 count = 1 px. so deg/px = 0.07 x sens — dpi-free, and the
+         exact same feel as valorant at any dpi. helper: degPerCssPx in settings. */
+
+      canvas3d.addEventListener('click', () => {
+        if (playing) return; /* mid-run: clicks shoot, they never re-open the pause menu */
+        if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); }).catch(() => {}); return; }
+        if (!renderer) init3d();
+        if (!isTouch && !locked) safeLock();
+      });
+
+      document.addEventListener('pointerlockchange', () => {
+        const wasLocked = locked;
+        locked = document.pointerLockElement === canvas3d;
+        if (locked) { lockAt = performance.now(); skipFirstMove = true; glitchRelock = false; }
+        rangeNote.textContent = locked ? (mode === 'track' ? 'aiming · HOLD left mouse on the bot · esc to pause'
+                                                       : 'aiming · click to shoot · esc to pause')
+          : isTouch ? 'drag to aim · tap to shoot'
+          : 'click the range to lock in';
+        if (cur) cur.classList.toggle('is-visible', !document.pointerLockElement);
+        /* a resume waits for this exact moment: lock landed -> NOW unpause */
+        if (lockPending) {
+          lockPending = false;
+          ovBtn.disabled = false;
+          ovBtn.style.visibility = '';
+          if (playing || paused) {
+            paused = false;
+            playing = true;
+            lastT = performance.now();
+            overlay.classList.add('is-hidden');
+          }
+          return;
+        }
+        if (wasLocked && !locked && playing && !paused) {
+          /* ANY unlock during a live run is a pause now. the old build tried to
+             guess "esc vs glitch" from a 600ms keydown window, but browsers
+             routinely swallow the escape keydown that ends pointer lock — so a
+             real esc looked like a glitch and silently re-locked instead of
+             pausing. the button is always Resume and it always continues. */
+          pauseRun();
+          return;
+        }
+      });
+
+      /* re-lock refused (esc cooldown etc). without this the run would keep playing
+         with a frozen cursor — the "range stuck" bug. */
+      document.addEventListener('pointerlockerror', () => {
+        if (lockPending) {
+          /* a resume's re-lock was refused. settle into the normal pause screen so the
+             player still sees Resume (and their progress) instead of a silent stall */
+          pauseRun('pointer lock blocked · click resume again');
+        }
+      });
+
+      /* any click while waiting on the lock re-grabs it: a click is a user gesture,
+         so the browser grants it. this is what kills the random mid-aim escapes */
+      document.addEventListener('click', () => {
+        if (lockPending && !locked && !isTouch) safeLock();
+      }, true);
+
+      let lockAt = 0; /* stamped on every lock */
+      let skipFirstMove = false; /* browsers emit one junk delta on the first event after a lock */
+      let escStamp = 0; /* last escape press, kept for diagnostics/telemetry only */
+      let glitchRelock = false; /* a relock is in flight for a glitch unlock (not a real esc) */
+      document.addEventListener('mousemove', (e) => {
+        if (!locked) return;
+        /* movementX IS the raw mouse count (unadjustedMovement): deg = 0.07 x sens x count.
+           exactly valorant's turn rate — nothing added, nothing compensated. */
+        if (skipFirstMove) { skipFirstMove = false; return; }
+        const radPerCount = degPerCount(settings.sens) * (Math.PI / 180);
+        /* sanity ceiling only, far beyond any real flick, purely to survive a
+           browser glitch. the old code clamped every event for 60ms to ±120 counts,
+           which chopped the head off real flicks (a hard flick is 200 to 800 counts
+           in one go) and was very likely the "feels slow" you hit. */
+        const mx = Math.max(-5000, Math.min(5000, e.movementX));
+        const my = Math.max(-5000, Math.min(5000, e.movementY));
+        yaw -= mx * radPerCount;
+        pitch -= my * radPerCount;
+        clampPitch();
+        camera.rotation.set(pitch, yaw, 0);
+      });
+
+      document.addEventListener('mousedown', (e) => {
+        if (!locked) return;
+        if (e.button === 0) { holding = true; shoot(); if (gun) gun.position.z = -0.5; }
+      });
+      document.addEventListener('mouseup', () => { holding = false; });
+
+      document.addEventListener('keydown', (e) => {
+        /* escape always pauses a live run. when the pointer is locked the browser
+           tears the lock down itself (pointerlockchange pauses us); when it isn't
+           (fullscreen, or the lock was already gone) we pause here. */
+        if (e.key === 'Escape') {
+          escStamp = performance.now();
+          if (locked) { document.exitPointerLock(); return; }
+          /* fullscreen: first esc pauses WITHOUT leaving fullscreen, a second esc
+             (or the exit-fullscreen button) is what actually drops out of it */
+          if (document.fullscreenElement) {
+            if (paused) { escWantsFullscreen = false; document.exitFullscreen(); }
+            else {
+              pauseRun();
+              escWantsFullscreen = true;
+            }
+            return;
+          }
+          if (playing) pauseRun();
+        }
+        if ((e.key === 'r' || e.key === 'R') && locked && !playing) start();
+        /* fullscreen from inside a run, keyboard-first: F flips it without breaking the lock */
+        if ((e.key === 'f' || e.key === 'F') && !e.repeat) {
+          if (document.fullscreenElement) document.exitFullscreen();
+          else fsTarget.requestFullscreen().catch(() => {});
+          e.preventDefault();
+        }
+      });
+
+      ovBtn.addEventListener('click', () => {
+        const action = ovBtn.dataset.action || 'same';
+        if (action === 'resume') { resumeRun(); return; }
+        cancelNext();
+        if (action === 'results') {
+          $('#btnResults').click();
+          return;
+        }
+        if (action === 'next' && session && session.guided) {
+          const step = session.list[session.idx];
+          /* resume the workout where it stopped: flip to this step's mode and start
+             without resetting progress (count/runs) */
+          document.querySelector('[data-mode="' + step.mode + '"]').click();
+          start();
+          if (!isTouch) safeLock();
+          return;
+        }
+        start();
+        if (!isTouch) safeLock();
+      });
+
+      /* "next exercise" (free mode) / "start next" (guided): roll straight into the
+         countdown and cancel the auto-advance timer */
+      ovBtn2.addEventListener('click', () => runNextExercise(ovBtn2.dataset.mode || mode));
+
+      /* ================= touch ================= */
+      let touchAim = null;
+      canvas3d.addEventListener('touchstart', (e) => {
+        if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); }).catch(() => {}); return; }
+        if (!renderer) init3d();
+        const t = e.touches[0];
+        touchAim = { x: t.clientX, y: t.clientY };
+        e.preventDefault();
+      }, { passive: false });
+      canvas3d.addEventListener('touchmove', (e) => {
+        if (!touchAim) return;
+        const t = e.touches[0];
+        const dx = t.clientX - touchAim.x, dy = t.clientY - touchAim.y;
+        touchAim = { x: t.clientX, y: t.clientY };
+        /* same valorant scaling as desktop (deg per raw count), with a finger damping
+           factor so a thumb drag covers roughly the same turn as a wrist flick */
+        const radPerPx = degPerCount(settings.sens) * 0.55 * (Math.PI / 180);
+        yaw -= dx * radPerPx;
+        pitch -= dy * radPerPx;
+        clampPitch();
+        camera.rotation.set(pitch, yaw, 0);
+        e.preventDefault();
+      }, { passive: false });
+      canvas3d.addEventListener('touchend', () => { touchAim = null; }, { passive: true });
+
+      fireBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (playing) { holding = true; shoot(); setTimeout(() => { holding = false; }, 90); }
+      });
+
+      if (isTouch) {
+        fireBtn.style.display = 'grid';
+        rangeNote.textContent = 'drag to aim · tap to shoot';
+      } else {
+        rangeNote.textContent = 'click the range to lock in';
+      }
+
+      /* ============ apple emojis everywhere (emoji-datasource-apple pngs) ============ */
+      const EMJ_CDN = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
+      const EMJ_RE = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+      const applefy = (root) => {
+        if (!root) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+          acceptNode: (n) => (n.parentElement && n.parentElement.closest('script, style, noscript, .emj, [data-emj-skip]'))
+            ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+        });
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach((n) => {
+          const txt = n.nodeValue;
+          if (!txt) return;
+          EMJ_RE.lastIndex = 0;
+          if (!EMJ_RE.test(txt)) return;
+          EMJ_RE.lastIndex = 0;
+          const frag = document.createDocumentFragment();
+          let last = 0, m;
+          while ((m = EMJ_RE.exec(txt))) {
+            const emoji = m[0];
+            if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+            const cps = [...emoji].map((c) => c.codePointAt(0).toString(16)).join('-');
+            const img = document.createElement('img');
+            img.className = 'emj';
+            img.src = EMJ_CDN + cps + '.png';
+            img.alt = emoji;
+            img.draggable = false;
+            img.onerror = () => img.replaceWith(document.createTextNode(emoji));
+            frag.appendChild(img);
+            last = m.index + emoji.length;
+          }
+          if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+          n.replaceWith(frag);
+        });
+      };
+      applefy(document.body);
+      const emjObs = new MutationObserver((muts) => {
+        emjObs.disconnect();
+        const roots = new Set();
+        muts.forEach((mu) => {
+          const fresh = [...mu.addedNodes].some((n) => !(n.nodeType === 1 && (n.classList.contains('spark') || n.classList.contains('emj'))));
+          if (!fresh || !mu.target.closest || mu.target.closest('script, style, [data-emj-skip]')) return;
+          roots.add(mu.target);
+        });
+        roots.forEach((el) => applefy(el.nodeType === 1 ? el : el.parentElement));
+        emjObs.observe(document.body, { childList: true, subtree: true });
+      });
+      emjObs.observe(document.body, { childList: true, subtree: true });
+
+      /* react-bits style spotlight cards: a soft highlight follows the cursor */
+      document.querySelectorAll('.rb-card').forEach((el) => {
+        el.addEventListener('pointermove', (e) => {
+          const r = el.getBoundingClientRect();
+          el.style.setProperty('--mx', ((e.clientX - r.left) / r.width) * 100 + '%');
+          el.style.setProperty('--my', ((e.clientY - r.top) / r.height) * 100 + '%');
+        }, { passive: true });
+      });
+
+      /* ================= boot ================= */
+      let threeReady = false;
+      const bootObs = new MutationObserver(() => {
+        if (!$('#stepSettings').classList.contains('hidden')) {
+          bootObs.disconnect();
+          /* kick off the cdn fetch the moment the range step is visible */
+          loadThree().then(() => {
+            threeReady = true;
+            init3d();
+            resizeXhLayer();
+            updateCrosshairs();
+            if (!rafId) { lastT = performance.now(); rafId = requestAnimationFrame(loop); }
+          }).catch(() => {
+            rangeNote.textContent = '3d engine failed to load, check your connection and refresh';
+          });
+        }
+      });
+      bootObs.observe($('#stepSettings'), { attributes: true });
+
+      window.addEventListener('orientationchange', () => setTimeout(() => { sizeRange(); resizeXhLayer(); }, 200));
+
+      window.__range = {
+        start, shoot, spawnTarget, end, pause: pauseRun, resume: resumeRun,
+        get state() { return { playing, paused, locked, counting, mode, timeLeft, score }; },
+        get stats() { return stats; },
+        get playing() { return playing; },
+        get score() { return score; },
+        get diff() { return diff; },
+        setDiff(id) { diff = DIFFS[id]; },
+        get session() { return session; },
+        get targets() { return targets.filter((t) => t.userData.r).map((t) => ({ x: +t.position.x.toFixed(1), y: +t.position.y.toFixed(1), z: +t.position.z.toFixed(1), r: t.userData.r })); },
+        setSens(v) { settings.sens = v; $('#rngSens').value = Math.round(v * 100); $('#valSens').textContent = v.toFixed(2); updateEdpi(); },
+        get sensV() { return settings.sens; },
+        get degPerPx() { return degPerCount(settings.sens); },
+        aimAt(x, y, z) {
+          const p = camera.position;
+          const dx = - p.x, dy = y - p.y, dz = z - p.z;
+          yaw = Math.atan2(-dx, -dz);
+          pitch = Math.atan2(dy, Math.hypot(dx, dz));
+          clampPitch();
+          camera.rotation.set(pitch, yaw, 0);
+        },
+        setMode(m) { document.querySelector('[data-mode="' + m + '"]').click(); },
+        finish() { timeLeft = 0.01; },
+        get cameraYaw() { return yaw; },
+        get cameraPitch() { return pitch; }
+      };
+    })();
+  </script>
+</body>
+</html>
