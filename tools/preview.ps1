@@ -65,14 +65,21 @@ function Test-ProjectPreview([int]$Candidate) {
 }
 
 try {
+  Write-Host 'Starting Kixot preview...'
   $previewPort = $null
-  foreach ($candidate in $Port..($Port + 16)) { if (Test-ProjectPreview $candidate) { $previewPort = $candidate; break } }
+  # Only check ports with a listener. Closed ports can otherwise delay opening
+  # the browser for over a minute on Windows with connection filtering.
+  $listeningPorts = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Select-Object -ExpandProperty Port -Unique
+  foreach ($candidate in $Port..($Port + 16)) {
+    if ($candidate -in $listeningPorts -and (Test-ProjectPreview $candidate)) { $previewPort = $candidate; break }
+  }
   foreach ($candidate in $Port..($Port + 16)) {
     if ($previewPort) { break }
     # Never replace or stop another application that owns a port.
     $probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $candidate)
     try { $probe.Start() } catch { continue } finally { $probe.Stop() }
     # The local preview binds to this PC; Node enables the optional analysis API.
+    Write-Host 'Loading the local preview service...'
     $shellPath = if ($hasNode) { $nodePath } else { (Get-Process -Id $PID).Path }
     $arguments = if ($hasNode) { @(('"' + (Join-Path $projectRoot 'server\preview.cjs') + '"'), '--port', [string]$candidate) } else { @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $PSCommandPath + '"'), '-Serve', '-Port', [string]$candidate) }
     $previewProcess = Start-Process -FilePath $shellPath -ArgumentList $arguments -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru
@@ -89,7 +96,11 @@ try {
   if (-not $previewPort) { throw 'No free local preview port was found.' }
   $previewUrl = "http://127.0.0.1:$previewPort/vod.html"
   Write-Output $previewUrl
-  if (-not $NoBrowser) { Start-Process -FilePath $previewUrl }
+  if (-not $NoBrowser) {
+    Write-Host 'Opening your browser...'
+    try { Start-Process -FilePath $previewUrl }
+    catch { throw "Windows could not open your browser. Copy this address into it: $previewUrl" }
+  }
 } catch {
   Write-Host $_.Exception.Message
   exit 1
