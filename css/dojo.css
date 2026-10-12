@@ -7,7 +7,7 @@
 .launcher-modes, .training-page .modes-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .launcher-mode, .training-page .mode-btn { min-width: 0; min-height: 58px; padding: 12px 6px; font-size: clamp(11px, 1.6vw, 14px); letter-spacing: .02em; font-weight: 700; border: 1px solid var(--line); color: var(--muted); background: #080808; cursor: pointer; }
 .launcher-mode:hover { border-color: var(--line-strong); color: #fff; }
-.launcher-mode.is-active { color: #000; background: #fff; border-color: #fff; }
+.launcher-mode.is-active, .training-page .mode-btn.is-active { color: #000; background: #fff; border-color: #fff; }
 .dojo-home { position: fixed; top: 26px; right: 24px; z-index: 100; padding: 10px 14px; font-size: 12px; background: #000; }
 .dojo-number, .dojo-select { min-width: 0; width: 100%; padding: 11px 12px; border: 1px solid var(--line-strong); background: #080808; color: #fff; font-size: 16px; }
 .dojo-select { width: auto; max-width: 100%; }

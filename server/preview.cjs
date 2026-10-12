@@ -4,6 +4,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (error) { if (error.code !== 'ENOENT') { console.error('Could not load the private .env setup file.'); process.exit(1); } }
 process.env.ANALYSIS_SETUP_STAMP = fs.existsSync(path.join(root, '.env')) ? String(Math.floor(fs.statSync(path.join(root, '.env')).mtimeMs)) : '0';
+process.env.ANALYSIS_CODE_STAMP = ['preview.cjs', 'round-analysis.cjs', 'local-video.cjs'].map(file => Math.floor(fs.statSync(path.join(__dirname, file)).mtimeMs)).join('-');
 const { handler } = require('./round-analysis.cjs');
 const portIndex = process.argv.indexOf('--port');
 const port = portIndex >= 0 ? Number(process.argv[portIndex + 1]) : 4175;
@@ -22,4 +23,5 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
   } catch { if (!res.headersSent) res.writeHead(400); res.end(); }
 });
+server.requestTimeout = 600000;
 server.listen(port, '127.0.0.1', () => console.log('http://127.0.0.1:' + port + '/vod.html'));

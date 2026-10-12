@@ -23,11 +23,11 @@
     const section = make('div', 'branch-section is-expanded');
     const heading = make('button', 'branch-heading', group.label); heading.type = 'button'; heading.setAttribute('aria-expanded', 'true');
     const body = make('div', 'branch-body'), inner = make('div', 'branch-inner'); inner.id = 'menuGroup' + groupIndex; heading.setAttribute('aria-controls', inner.id);
-    const svg = svgNode('svg'); svg.classList.add('branch-lines'); svg.setAttribute('width', '40'); svg.setAttribute('height', String(12 + group.links.length * 36)); svg.setAttribute('aria-hidden', 'true');
-    const lastY = 6 + (group.links.length - 1) * 36 + 18;
+    const svg = svgNode('svg'); svg.classList.add('branch-lines'); svg.setAttribute('width', '40'); svg.setAttribute('height', String(12 + group.links.length * 32)); svg.setAttribute('aria-hidden', 'true');
+    const lastY = 6 + (group.links.length - 1) * 32 + 16;
     const trunk = svgNode('path'); trunk.setAttribute('d', 'M14 0 V' + (lastY - 10)); svg.appendChild(trunk);
     group.links.filter(Boolean).forEach((link, index) => {
-      const y = 24 + index * 36;
+      const y = 22 + index * 32;
       const branch = svgNode('path'); branch.setAttribute('d', `M14 ${y - 10} A10 10 0 0 0 24 ${y} H32`); svg.appendChild(branch);
       const active = svgNode('path'); active.classList.add('branch-reach'); active.setAttribute('d', `M14 0 V${y - 10} A10 10 0 0 0 24 ${y} H32`);
       const length = y - 10 + Math.PI * 5 + 8; active.style.strokeDasharray = length; active.style.strokeDashoffset = length; svg.appendChild(active);
@@ -69,6 +69,7 @@
   dock.addEventListener('focusout', () => { requestAnimationFrame(() => { if (!dock.contains(document.activeElement) && !dock.matches(':hover')) setOpen(false); }); });
   new MutationObserver(syncMarker).observe(tree, { subtree: true, attributes: true, attributeFilter: ['class', 'aria-current'] });
   tree.addEventListener('transitionend', syncMarker);
+  tree.addEventListener('animationend', syncMarker);
   window.addEventListener('resize', syncMarker, { passive: true });
   motion.addEventListener('change', syncMarker);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(hoverTimer); clearTimeout(closeTimer); setOpen(false); } });

@@ -35,10 +35,35 @@ test('quota exhaustion stops, without retries or paid model fallback', async () 
   const service = createService({ env, fetcher: async () => { calls++; return { ok: false, status: 429 }; } });
   await assert.rejects(service.run(input), /no paid fallback/); assert.equal(calls, 1);
 });
+
+test('temporary busy polling preserves the accepted job without submitting another video', async () => {
+  let calls = 0, starts = 0;
+  const service = createService({ env, fetcher: async (url, options) => {
+    calls++;
+    if (options.method === 'POST') { starts++; return response({ id: 'job_example', status: 'in_progress' }); }
+    if (calls === 2) return { ok: false, status: 503 };
+    return response(complete());
+  } });
+  const started = await service.run(input);
+  const busy = await service.run({ action: 'poll', job: started.job });
+  assert.equal(busy.status, 'processing'); assert.equal(busy.job, started.job); assert.equal(busy.pollAfter, 30); assert.match(busy.message, /Google is busy/);
+  const result = await service.run({ action: 'poll', job: busy.job });
+  assert.equal(result.status, 'completed'); assert.equal(starts, 1);
+});
+
+test('quota errors while polling stop immediately and failed busy jobs are not retried', async () => {
+  for (const failure of [{ ok: false, status: 429 }, response({ status: 'failed', error: { code: 'service_unavailable' } })]) {
+    let calls = 0;
+    const service = createService({ env, fetcher: async (url, options) => { calls++; return options.method === 'POST' ? response({ id: 'job_example', status: 'in_progress' }) : failure; } });
+    const started = await service.run(input);
+    await assert.rejects(service.run({ action: 'poll', job: started.job }), /no paid fallback|stopped this job/);
+    assert.equal(calls, 2);
+  }
+});
 test('malformed sources, duration limits and unavailable output do not generate markers', async () => {
   let calls = 0; const service = createService({ env, fetcher: async () => { calls++; return response({ id: 'job_example', status: 'incomplete' }); } });
-  await assert.rejects(service.run({ ...input, videoId: 'https://evil.example' }), /loaded public/);
-  await assert.rejects(service.run({ ...input, duration: 7201 }), /loaded public/); assert.equal(calls, 0);
+  await assert.rejects(service.run({ ...input, videoId: 'https://evil.example' }), /loaded video/);
+  await assert.rejects(service.run({ ...input, duration: 7201 }), /loaded video/); assert.equal(calls, 0);
   await assert.rejects(service.run(input), /No markers were changed/);
 });
 test('invalid or overlapping model output is rejected rather than repaired into a pattern', () => {

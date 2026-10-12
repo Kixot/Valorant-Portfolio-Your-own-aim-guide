@@ -54,7 +54,7 @@
           <input id="youtubeUrl" type="text" inputmode="url" maxlength="2048" placeholder="https://www.youtube.com/watch?v=..." required />
           <button class="rbtn rbtn--solid" type="submit">Load YouTube</button>
         </form>
-        <div class="vod-local-source"><label class="vod-file-label" for="localFile">Local video<input id="localFile" type="file" accept="video/*,.mp4,.webm,.ogv,.mov,.m4v" /></label><p>Your file never uploads.</p></div>
+        <div class="vod-local-source"><label class="vod-file-label" for="localFile">Local video<input id="localFile" type="file" accept="video/*,.mp4,.webm,.ogv,.mov,.m4v" /></label><p>Playback stays local. Analyze local video sends the file to Google.</p></div>
       </div>
       <p id="vodStorageStatus" class="vod-storage" role="status" aria-live="polite"></p>
       <p id="vodStatus" class="vod-status" role="status" aria-live="polite"></p>
@@ -68,7 +68,8 @@
         <div class="vod-player-actions"><button class="rbtn" id="markRound" type="button" disabled>Mark my point</button><button class="rbtn" id="tagMistake" type="button" disabled>Tag a mistake</button></div>
       </div>
       <div id="reviewWorkspace" hidden>
-        <section class="vod-card" aria-label="Detected rounds"><h3>Rounds</h3><p class="vod-empty">Google AI analyzes public YouTube videos. Check uncertain timestamps.</p><div class="vod-actions"><button class="rbtn" type="button" id="analyzeRounds">Analyze rounds</button><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop waiting</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul></section>
+        <div class="vod-card" id="localAnalysisConfirm" role="dialog" aria-label="Send recording for analysis" hidden><p>Send this video to Google for AI round analysis? Free-tier inputs may be used to improve Google products.</p><div class="vod-actions"><button class="rbtn" id="confirmLocalAnalysis" type="button">Send and analyze</button><button class="rbtn" id="cancelLocalAnalysis" type="button">Cancel</button></div></div>
+        <section class="vod-card" aria-label="Detected rounds"><h3>Rounds</h3><p class="vod-empty">Google AI analyzes public YouTube videos or selected recordings. Unlisted YouTube links need the original file. Check uncertain timestamps.</p><div class="vod-actions"><button class="rbtn" type="button" id="analyzeRounds">Analyze rounds</button><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop waiting</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul></section>
         <form class="vod-card vod-tag-form" id="mistakeForm" hidden>
           <label for="mistakeTime">Time (seconds or mm:ss)<input id="mistakeTime" type="text" inputmode="decimal" required maxlength="16" /></label>
           <label for="mistakeType">Type<select id="mistakeType"></select></label>

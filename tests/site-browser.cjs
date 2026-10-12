@@ -19,6 +19,7 @@ const passed = [];
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, ...options }); contexts.push(context);
     await context.route('https://www.youtube.com/iframe_api', route => route.fulfill({ contentType: 'text/javascript', body: fakeApi }));
     await context.route('https://www.youtube.com/embed/**', route => route.fulfill({ contentType: 'text/html', body: '<html><body>Test player</body></html>' }));
+    await context.route('**/api/analyze-rounds', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ configured: false }) }));
     const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
     return { context, page, errors };
   };
@@ -32,8 +33,7 @@ const passed = [];
     const { page, errors } = await fresh();
     const gaRequests = []; page.on('request', request => { if (/googletagmanager|google-analytics/.test(request.url())) gaRequests.push(request.url()); });
     await page.goto(base + '/vod.html');
-    assert.equal(await page.locator('.analytics-choice').isVisible(), true);
-    await page.getByRole('button', { name: 'Accept', exact: true }).click();
+    assert.equal(await page.locator('.analytics-choice').count(), 0);
     assert.equal(await page.locator('.analytics-choice').isVisible(), false);
     assert.equal(gaRequests.length, 0, 'empty GA ID must not load even after accept');
     await load(page);
@@ -128,26 +128,21 @@ const passed = [];
     const analyticsSource = fs.readFileSync(path.join(__dirname, '../js/analytics.js'), 'utf8').replace("const GA_MEASUREMENT_ID = '';", "const GA_MEASUREMENT_ID = 'G-ABCDEF1234';");
     await analytics.context.route('**/js/analytics.js', route => route.fulfill({ contentType: 'text/javascript', body: analyticsSource }));
     await analytics.context.route('https://www.googletagmanager.com/**', route => { gaLoads++; return route.fulfill({ contentType: 'text/javascript', body: '' }); });
-    await analytics.page.goto(base + '/vod.html'); assert.equal(gaLoads, 0);
+    await analytics.page.goto(base + '/vod.html');
     await analytics.page.evaluate(() => window.KixotAnalytics.track('round_marked', { video_source: 'youtube' }));
-    // A popup covers controls until dismissed; consent is never inferred.
-    await analytics.page.getByRole('button', { name: 'Accept', exact: true }).click();
     await analytics.page.waitForFunction(() => window.dataLayer?.some(item => item[0] === 'event' && item[1] === 'page_view'));
     await analytics.page.evaluate(() => { window.KixotAnalytics.track('mistake_tag_added', { mistake_type: 'bad_peek', note: 'private', video_source: 'youtube', filename: 'private.mp4', video_link: 'secret' }); window.KixotAnalytics.track('not_allowed', {}); });
     let entries = await analytics.page.evaluate(() => window.dataLayer.map(item => [...item]));
     assert.equal(entries.filter(item => item[1] === 'page_view').length, 1);
     assert.deepEqual(entries.find(item => item[1] === 'mistake_tag_added')[2], { video_source: 'youtube', mistake_type: 'bad_peek' });
     assert.equal(JSON.stringify(entries).includes('private'), false);
-    await analytics.page.getByRole('button', { name: 'Analytics', exact: true }).click(); await analytics.page.getByRole('button', { name: 'Decline', exact: true }).click();
-    const count = await analytics.page.evaluate(() => window.dataLayer.length); await analytics.page.evaluate(() => window.KixotAnalytics.track('round_marked', { video_source: 'youtube' })); assert.equal(await analytics.page.evaluate(() => window.dataLayer.length), count);
-    await analytics.page.getByRole('button', { name: 'Analytics', exact: true }).click(); await analytics.page.getByRole('button', { name: 'Accept', exact: true }).click();
     assert.equal(gaLoads, 1); entries = await analytics.page.evaluate(() => window.dataLayer.map(item => [...item])); assert.equal(entries.filter(item => item[1] === 'page_view').length, 1);
-    assert.deepEqual(analytics.errors, []); passed.push('Analytics stays off before consent, sanitizes parameters, sends one page view and handles decline/reaccept');
+    assert.deepEqual(analytics.errors, []); passed.push('Optional configured GA4 starts automatically, sanitizes parameters and sends one page view');
 
     const blockedTag = await fresh();
     await blockedTag.context.route('**/js/analytics.js', route => route.fulfill({ contentType: 'text/javascript', body: analyticsSource }));
     await blockedTag.context.route('https://www.googletagmanager.com/**', route => route.abort('blockedbyclient'));
-    await blockedTag.page.goto(base + '/vod.html'); await blockedTag.page.getByRole('button', { name: 'Accept', exact: true }).click(); await load(blockedTag.page); await blockedTag.page.locator('#markRound').click(); assert.deepEqual(blockedTag.errors, []);
+    await blockedTag.page.goto(base + '/vod.html'); await load(blockedTag.page); await blockedTag.page.locator('#markRound').click(); assert.deepEqual(blockedTag.errors, []);
     passed.push('Blocked gtag does not interrupt the reviewer');
 
     for (const width of [360, 390, 768, 1440]) {

@@ -10,6 +10,16 @@
   let current = null, token = 0, objectUrl = null, youtube = null, loaded = false, apiPromise = null, playerTimer = null;
   let analysisTask = null;
   const analysisTried = new Set();
+  const confirmLocalUpload = signal => new Promise(resolve => {
+    if (signal.aborted) { resolve(false); return; }
+    const panel = $('localAnalysisConfirm'); panel.hidden = false;
+    const finish = accepted => {
+      panel.hidden = true; $('confirmLocalAnalysis').removeEventListener('click', accept); $('cancelLocalAnalysis').removeEventListener('click', decline); signal.removeEventListener('abort', decline); document.removeEventListener('keydown', escape); resolve(accepted);
+    };
+    const accept = () => finish(true), decline = () => finish(false), escape = event => { if (event.key === 'Escape') { event.preventDefault(); decline(); } };
+    $('confirmLocalAnalysis').addEventListener('click', accept); $('cancelLocalAnalysis').addEventListener('click', decline); signal.addEventListener('abort', decline, { once: true }); document.addEventListener('keydown', escape);
+    $('confirmLocalAnalysis').focus({ preventScroll: true }); panel.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  });
   const local = $('localPlayer');
   const message = text => { $('vodStatus').textContent = text; };
   const warning = text => { $('vodStorageStatus').textContent = text; };
@@ -81,7 +91,8 @@
   const syncControls = () => {
     $('markRound').disabled = !loaded; $('tagMistake').disabled = !loaded;
     ['exportReviewText', 'exportReviewJson', 'shareReview', 'deleteReview'].forEach(id => { $(id).disabled = !current; });
-    $('analyzeRounds').disabled = !loaded || current?.source.type !== 'youtube' || !!analysisTask;
+    $('analyzeRounds').disabled = !loaded || !!analysisTask;
+    $('analyzeRounds').textContent = current?.source.type === 'file' ? 'Analyze local video' : 'Analyze rounds';
     $('cancelRoundAnalysis').hidden = !analysisTask;
     $('activeVideo').textContent = current ? name(current) : 'Choose a video';
   };
@@ -176,7 +187,10 @@
     [...items].sort((a, b) => a.time - b.time).forEach(item => {
       const row = element('li', undefined, 'vod-entry');
       const heading = element('div', undefined, 'vod-entry-head');
-      const seek = button(core.stamp(item.time) + ' ' + (kind === 'round' ? item.label : item.type), () => adapter.seek(item.time)); seek.classList.add('vod-seek');
+      const seekLabel = core.stamp(item.time) + ' ' + (kind === 'round' ? item.label : item.type);
+      const seek = button(seekLabel, () => {
+        if (adapter.seek(item.time)) document.querySelector('.vod-player-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      }); seek.classList.add('vod-seek'); seek.title = 'Jump to ' + core.stamp(item.time); seek.setAttribute('aria-label', 'Jump to ' + seekLabel);
       const actions = element('div', undefined, 'vod-row-actions');
       actions.append(button('Edit', () => editRow(item, kind, row)), button('Delete', () => { const index = items.indexOf(item); if (index >= 0) items.splice(index, 1); save(); message('Deleted.'); }));
       heading.append(seek, actions); row.appendChild(heading);
@@ -239,7 +253,8 @@
     signal.addEventListener('abort', abort, { once: true });
   });
   const startAnalysis = async automatic => {
-    if (!loaded || !current || current.source.type !== 'youtube' || analysisTask) return;
+    if (!loaded || !current || analysisTask) return;
+    if (automatic && current.source.type === 'file') return;
     const key = current.key, expected = token;
     if (automatic && (current.detectedRounds.length || analysisTried.has(key))) return;
     if (!automatic && current.detectedRounds.length && !confirm('Replace the detected round timestamps? Your custom points stay saved.')) return;
@@ -250,17 +265,41 @@
       $('roundAnalysisStatus').textContent = 'Checking round analysis.';
       const info = await window.KixotRoundAnalysis.info(task.signal);
       if (!info.configured) throw new Error('Round analysis is not available yet.');
+      if (current.source.type === 'file' && info.localUploads !== true) throw new Error('This preview is out of date. Open Preview.cmd again for local video analysis.');
       const duration = adapter.duration();
       if (!Number.isFinite(duration) || duration <= 0) throw new Error('Wait for the video duration, then analyze again.');
       if (duration > info.maximumDuration) throw new Error('Round analysis supports videos up to two hours.');
       let job = null; try { job = sessionStorage.getItem(jobKey); } catch {}
+      let fileToken = null;
+      const uploadKey = 'kixot_round_file_v1:' + key;
+      if (current.source.type === 'file' && !job) {
+        try { fileToken = sessionStorage.getItem(uploadKey); } catch {}
+        if (!fileToken) {
+          const file = files.get(key);
+          if (!file) throw new Error('Choose the matching recording before analyzing.');
+          if (file.size > 2 * 1024 ** 3) throw new Error('Local analysis supports files smaller than 2 GB.');
+          if (!await confirmLocalUpload(task.signal)) { if (expected === token) $('roundAnalysisStatus').textContent = 'Upload canceled. The video stayed local.'; return; }
+          $('roundAnalysisStatus').textContent = 'Uploading the selected video to Google.';
+          fileToken = await window.KixotRoundAnalysis.upload(file, duration, task.signal);
+          if (typeof fileToken !== 'string') throw new Error('The video upload did not return a valid reference.');
+          try { sessionStorage.setItem(uploadKey, fileToken); } catch {}
+        }
+      }
       $('roundAnalysisStatus').textContent = 'Analyzing gameplay and round transitions.';
-      let result = job ? await window.KixotRoundAnalysis.poll(job, task.signal) : await window.KixotRoundAnalysis.start(current.source.videoId, duration, task.signal);
+      let result = job ? await window.KixotRoundAnalysis.poll(job, task.signal) : fileToken ? await window.KixotRoundAnalysis.startFile(fileToken, task.signal) : await window.KixotRoundAnalysis.start(current.source.videoId, duration, task.signal);
       const started = performance.now();
-      while (result.status === 'processing') {
+      while (['processing', 'file_processing'].includes(result.status)) {
         if (expected !== token || current?.key !== key || task.signal.aborted) return;
+        if (result.status === 'file_processing') {
+          if (performance.now() - started > 1500000) throw new Error('Google is still preparing this file. Analyze local video checks it again.');
+          $('roundAnalysisStatus').textContent = 'Google is preparing the uploaded video. ' + core.stamp(Math.floor((performance.now() - started) / 1000)) + ' elapsed.';
+          await wait(15000, task.signal);
+          while (document.hidden) await wait(2000, task.signal);
+          result = await window.KixotRoundAnalysis.startFile(fileToken, task.signal); continue;
+        }
         if (typeof result.job !== 'string') throw new Error('Round analysis returned an invalid job.');
         job = result.job; try { sessionStorage.setItem(jobKey, job); } catch {}
+        $('roundAnalysisStatus').textContent = result.message || 'Analyzing gameplay and round transitions. ' + core.stamp(Math.floor((performance.now() - started) / 1000)) + ' elapsed.';
         if (performance.now() - started > 1500000) throw new Error('Analysis is taking longer than expected. Click Analyze rounds to check the saved job again.');
         await wait(Math.max(15, Math.min(60, Number(result.pollAfter) || 15)) * 1000, task.signal);
         while (document.hidden) await wait(2000, task.signal);
@@ -273,7 +312,7 @@
       current.detectedRounds = rounds; save(); try { sessionStorage.removeItem(jobKey); } catch {}
       $('roundAnalysisStatus').textContent = rounds.length ? 'Round timestamps detected. Check them before confirming.' : 'No complete live rounds detected.';
     } catch (error) {
-      if (expected === token && error.name !== 'AbortError') { $('roundAnalysisStatus').textContent = error.message; if (/expired|could not establish|cannot access/.test(error.message)) try { sessionStorage.removeItem(jobKey); } catch {} }
+      if (expected === token && error.name !== 'AbortError') { $('roundAnalysisStatus').textContent = error.message; if (/expired|could not establish|cannot access|stopped this job/.test(error.message)) try { sessionStorage.removeItem(jobKey); } catch {} if (/uploaded video expired/.test(error.message)) try { sessionStorage.removeItem('kixot_round_file_v1:' + key); } catch {} }
     } finally { if (analysisTask === task) { analysisTask = null; syncControls(); } }
   };
   $('analyzeRounds').addEventListener('click', () => startAnalysis(false));

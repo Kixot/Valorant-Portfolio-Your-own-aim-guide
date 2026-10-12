@@ -288,7 +288,6 @@
         $('#stepPlan').classList.add('hidden');
         $('#stepSettings').classList.remove('hidden');
         $('#dojoLauncher').hidden = true;
-        $('#btnChooseMode').hidden = false;
         $('#btnBackPlan').textContent = 'Back to plan';
         window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
         setTimeout(() => { sizeRange(); resizeXhLayer(); }, 80);
@@ -303,7 +302,7 @@
         if (playing || counting) return;
         $('#stepSettings').classList.add('hidden');
         if (hasPlan) $('#stepPlan').classList.remove('hidden');
-        else $('#btnChooseMode').click();
+        else returnToModes();
       });
       $('#btnResults').addEventListener('click', () => {
         $('#stepSettings').classList.add('hidden');
@@ -335,7 +334,7 @@
          player chooses another exercise after the current run ends. */
       const syncModeButtons = () => {
         const busy = playing || counting;
-        document.querySelectorAll('#rngDpi, #rngSens, #optDiffLive button, #btnQuick, #btnBackPlan, #btnChooseMode').forEach(control => { control.disabled = busy; });
+        document.querySelectorAll('#rngDpi, #rngSens, #optDiffLive button, #btnQuick, #btnBackPlan').forEach(control => { control.disabled = busy; });
         $('#myProgress').hidden = busy;
         document.querySelector('a[href="#myProgress"]').hidden = busy;
         document.querySelectorAll('.mode-btn').forEach((b) => {
@@ -1523,19 +1522,17 @@
         if (locked) document.exitPointerLock();
         syncModeButtons();
       };
-      $('#btnChooseMode').addEventListener('click', () => {
+      const returnToModes = () => {
         if (playing || counting) return;
         resetExercise();
         hasPlan = false;
         ['stepSurvey', 'stepPlan', 'stepSettings', 'stepResults'].forEach(id => $('#' + id).classList.add('hidden'));
         $('#dojoLauncher').hidden = false;
-        $('#btnChooseMode').hidden = true;
         window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
-      });
+      };
       $('#btnOpenPlan').addEventListener('click', () => {
         resetExercise();
         $('#dojoLauncher').hidden = true;
-        $('#btnChooseMode').hidden = false;
         $('#stepPlan').classList.add('hidden');
         $('#stepSettings').classList.add('hidden');
         $('#stepResults').classList.add('hidden');
@@ -1555,7 +1552,6 @@
         $('#btnResults').disabled = true;
         diff = DIFFS[1];
         $('#dojoLauncher').hidden = true;
-        $('#btnChooseMode').hidden = false;
         $('#stepSurvey').classList.add('hidden');
         $('#stepPlan').classList.add('hidden');
         $('#stepResults').classList.add('hidden');

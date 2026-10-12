@@ -19,7 +19,7 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
       requests.push(body);
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'completed', rounds }) });
     });
-    await page.goto(base + '/vod.html'); await page.getByRole('button', { name: 'Decline', exact: true }).click();
+    await page.goto(base + '/vod.html');
     await page.locator('#youtubeUrl').fill('https://youtu.be/M7lc1UVf-VE'); await page.locator('#youtubeForm button').click();
     await page.locator('#detectedRoundList li').first().waitFor();
     assert.equal(await page.locator('#detectedRoundList li').count(), 2);
@@ -48,7 +48,7 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
     assert.deepEqual(errors, []); await context.close();
     const files = await browser.newContext(); const direct = await files.newPage(), directErrors = [], youtubeRequests = [];
     direct.on('pageerror', error => directErrors.push(error.message)); direct.on('request', request => { if (request.url().includes('youtube.com')) youtubeRequests.push(request.url()); });
-    await direct.goto(pathToFileURL(path.resolve('vod.html')).href); await direct.getByRole('button', { name: 'Decline', exact: true }).click();
+    await direct.goto(pathToFileURL(path.resolve('vod.html')).href);
     assert.equal(await direct.locator('#localPreviewHelp').isVisible(), true);
     await direct.locator('#youtubeUrl').fill('https://youtu.be/M7lc1UVf-VE'); await direct.locator('#youtubeForm button').click();
     assert.match(await direct.locator('#vodStatus').innerText(), /Preview.cmd/); assert.equal(await direct.locator('#youtubePlayer').count(), 0); assert.equal(youtubeRequests.length, 0);

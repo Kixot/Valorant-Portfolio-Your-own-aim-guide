@@ -9,7 +9,7 @@ const fs = require('node:fs');
   page.on('request', request => { if (request.url().includes('youtube.com/embed/')) requests.push({ url: request.url(), referrer: request.headers().referer }); });
   try {
     await page.goto((process.env.SITE_TEST_URL || 'http://127.0.0.1:4174') + '/vod.html');
-    await page.getByRole('button', { name: 'Decline', exact: true }).click();
+
     for (const id of ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ']) {
       await page.locator('#youtubeUrl').fill('https://www.youtube.com/watch?v=' + id); await page.locator('#youtubeForm button').click();
       await page.waitForFunction(() => /Video ready|code \d|could not load/.test(document.querySelector('#vodStatus').textContent), null, { timeout: 30000 }).catch(() => {});

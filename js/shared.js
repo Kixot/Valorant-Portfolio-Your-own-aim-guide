@@ -34,7 +34,6 @@
   const selectTarget = target => {
     let next = target?.closest?.(interactive) || null;
     if (next?.matches('input[type="range"]') || (next?.tagName === 'LABEL' && next.control?.type === 'range')) next = null;
-    if (next?.matches(':disabled')) next = null;
     activeTarget = next;
     cur?.classList.toggle('is-hover', !!activeTarget);
   };

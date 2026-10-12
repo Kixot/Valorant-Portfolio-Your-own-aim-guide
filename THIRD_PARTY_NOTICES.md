@@ -28,3 +28,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+# Vercel Analytics
+
+@vercel/analytics 2.0.1 provides the vanilla browser SDK in assets/vendor/vercel-analytics.js. Its MIT license is included in assets/vendor/vercel-analytics.LICENSE.txt.

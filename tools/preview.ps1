@@ -7,6 +7,7 @@ $nodePath = if ($nodeCommand) { $nodeCommand.Source } else { Join-Path $env:USER
 $hasNode = [IO.File]::Exists($nodePath)
 $privateSetup = Join-Path $projectRoot '.env'
 $setupStamp = if ([IO.File]::Exists($privateSetup)) { [string]([DateTimeOffset]([IO.File]::GetLastWriteTimeUtc($privateSetup))).ToUnixTimeMilliseconds() } else { '0' }
+$codeStamp = (@('server\preview.cjs', 'server\round-analysis.cjs', 'server\local-video.cjs') | ForEach-Object { [string]([DateTimeOffset]([IO.File]::GetLastWriteTimeUtc((Join-Path $projectRoot $_)))).ToUnixTimeMilliseconds() }) -join '-'
 
 if ($Serve) {
   # Development-only static file preview using built-in Windows/.NET facilities.
@@ -58,7 +59,7 @@ function Test-ProjectPreview([int]$Candidate) {
     if ($hasNode) {
       $info = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Candidate/api/analyze-rounds" -TimeoutSec 2
       $serviceInfo = $info.Content | ConvertFrom-Json
-      return $serviceInfo.service -eq 'kixot-analysis-v1' -and $serviceInfo.setupStamp -eq $setupStamp
+      return $serviceInfo.service -eq 'kixot-analysis-v1' -and $serviceInfo.setupStamp -eq $setupStamp -and $serviceInfo.codeStamp -eq $codeStamp
     }
     return $true
   } catch { return $false }

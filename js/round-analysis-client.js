@@ -10,5 +10,12 @@
     if (!response.ok) throw new Error(data.error || 'Round analysis could not finish.');
     return data;
   };
-  window.KixotRoundAnalysis = Object.freeze({ info: signal => request(null, signal), start: (videoId, duration, signal) => request({ action: 'start', videoId, duration }, signal), poll: (job, signal) => request({ action: 'poll', job }, signal) });
+  const upload = async (file, duration, signal) => {
+    const mime = file.type || (/\.(mov)$/i.test(file.name) ? 'video/quicktime' : /\.webm$/i.test(file.name) ? 'video/webm' : 'video/mp4');
+    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': mime, 'X-Video-Duration': String(duration) }, body: file, credentials: 'omit', signal: AbortSignal.any([signal, AbortSignal.timeout(600000)]) });
+    let data; try { data = await response.json(); } catch { throw new Error('The upload did not finish. This host may limit video upload size.'); }
+    if (!response.ok) throw new Error(data.error || 'The video upload could not finish.');
+    return data.fileToken;
+  };
+  window.KixotRoundAnalysis = Object.freeze({ info: signal => request(null, signal), start: (videoId, duration, signal) => request({ action: 'start', videoId, duration }, signal), poll: (job, signal) => request({ action: 'poll', job }, signal), upload, startFile: (fileToken, signal) => request({ action: 'startFile', fileToken }, signal) });
 })();
