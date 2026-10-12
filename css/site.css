@@ -1,0 +1,714 @@
+
+    /* self-hosted: crete round carries every title, outfit keeps the hero wordmark unique.
+       everything else is courier new (a system face, no download). */
+    @font-face { font-family: 'Crete Round'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/crete-round-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Outfit'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('../assets/fonts/outfit-latin.woff2') format('woff2'); }
+    html { background: #000000; }
+    :root {
+      --bg: #000000;
+      --panel: rgba(255, 255, 255, 0.035);
+      --glass: rgba(0, 0, 0, 0.72);
+      --line: rgba(255, 255, 255, 0.14);
+      --line-strong: rgba(255, 255, 255, 0.5);
+      --green: #ffffff;
+      --green-soft: rgba(255, 255, 255, 0.07);
+      --blue: #ffffff;
+      --text: #f5f5f5;
+      --muted: #8b8b8b;
+      --font-display: 'Outfit', 'Segoe UI', sans-serif;
+      --font-hero: 'Retroica', 'Outfit', sans-serif;
+      --font-body: 'Outfit', 'Segoe UI', sans-serif;
+      --font-hero-keep: Consolas, 'Courier New', ui-monospace, monospace;
+      /* the face a hand-picked set of words used before the redesign (display sans) */
+      --font-prev: 'Outfit', 'Segoe UI', sans-serif;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    /* the native cursor is switched off ONLY while the custom one is actually running.
+       the script adds html.cur-on when it starts; if it never runs (no js, a touch or
+       hybrid pointer that fails the hover/pointer check, reduced motion, or any error
+       before this point) the page still has a real cursor instead of nothing at all.
+       that inversion is the whole fix: it used to be body{cursor:none} unconditionally,
+       which left anyone whose browser failed the matchMedia check with no cursor. */
+    html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
+    ::selection { background: var(--green); color: #000000; }
+    ::-webkit-scrollbar { width: 9px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--green); }
+
+    h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 400; /* crete round ships a single regular weight */
+      letter-spacing: 0.01em;
+      line-height: 1.08;
+      text-transform: uppercase;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    .accent { color: var(--green); }
+
+    /* ============ aurora background ============ */
+    @keyframes drift1 { to { transform: translate(9vw, 7vh) scale(1.12); } }
+    @keyframes drift2 { to { transform: translate(-8vw, 10vh) scale(0.92); } }
+    @keyframes drift3 { to { transform: translate(6vw, -9vh) scale(1.15); } }
+
+    .grid-overlay {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, #000 15%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, #000 15%, transparent 75%);
+    }
+
+    /* ============ net background: the official vanta.js "net" ============
+       #netBg is only a mount point: vanta appends its own canvas inside it and
+       sizes it to the box. the only styling on top is the dim + the edge fade, so
+       the words always win over the net. */
+    .net-bg {
+      position: fixed; inset: 0; z-index: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      background: #000000;
+      opacity: 0.22;
+      -webkit-mask-image: radial-gradient(ellipse 80% 72% at 50% 40%, #000 38%, rgba(0, 0, 0, 0.12) 100%);
+      mask-image: radial-gradient(ellipse 80% 72% at 50% 40%, #000 38%, rgba(0, 0, 0, 0.12) 100%);
+    }
+    .net-bg canvas { display: block; }
+
+    /* css-only stand-in. only ever shown when webgl or the cdn is out of reach,
+       so the page never has a hole where the background should be. */
+    .net-css-fallback {
+      position: fixed; inset: 0; z-index: 0; display: none;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 58px 58px;
+      -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 15%, transparent 75%);
+      mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 15%, transparent 75%);
+    }
+    body.net-css .net-css-fallback { display: block; }
+
+
+    @keyframes popIn { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
+    @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+
+    /* no page fade: content is simply there (nothing to flicker or flash) */
+    .page { opacity: 1; }
+
+    /* ============ cursor: plus only. zero glitch ============ */
+    #cur {
+      position: fixed; top: 0; left: 0;
+      z-index: 600; pointer-events: none;
+      width: 12px; height: 12px;
+      margin: -6px 0 0 -6px;
+      border: 0;
+      background:
+        linear-gradient(transparent 0 5px, var(--green) 5px 7px, transparent 7px),
+        linear-gradient(90deg, transparent 0 5px, var(--green) 5px 7px, transparent 7px);
+      
+      opacity: 0;
+      transition: opacity 0.2s, filter 0.2s;
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+    #cur::before { content: none; }
+    #cur.is-visible { opacity: 1; }
+    /* click feedback is the spark burst only. no square ring, ever */
+
+    @media (hover: none) {
+      /* html.cur-on never gets set on these, so the native cursor stays by default */
+      #cur { display: none; }
+    }
+
+    .spark {
+      position: fixed; z-index: 250; pointer-events: none;
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--green);
+      
+      animation: sparkOut 0.5s var(--ease) forwards;
+    }
+
+    /* apple emojis everywhere: inline pngs replace whatever emoji font the os ships */
+    img.emj {
+      display: inline-block; width: 1.15em; height: 1.15em;
+      margin: 0 0.08em; vertical-align: -0.18em;
+    }
+    @keyframes sparkOut { to { transform: translate(var(--sx), var(--sy)) scale(0.2); opacity: 0; } }
+
+    /* ============ buttons: border contrast + specular shine sweep (transform only) ============ */
+    .rbtn {
+      position: relative;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 15px 32px;
+      font-family: var(--font-body); font-weight: 700; font-size: 13px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.72);
+      border: 1px solid var(--line-strong);
+      overflow: hidden;
+      transition: border-color 0.25s, background 0.25s, filter 0.25s;
+    }
+    .rbtn::after {
+      /* specular highlight: a light bar that sweeps across on hover. transform-only, no reflow */
+      content: '';
+      position: absolute; top: -40%; bottom: -40%; left: 0;
+      width: 36%;
+      background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+      transform: translateX(-240%) skewX(-18deg);
+      transition: transform 0.65s var(--ease), opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .rbtn:hover::after, .rbtn:active::after,
+    .rbtn:focus-visible::after {
+      transform: translateX(430%) skewX(-18deg);
+      opacity: 1;
+    }
+    /* hover = full inversion: dark chips flash green with black text, solid green goes dark with white text */
+    .rbtn:hover {
+      background: var(--green);
+      color: #000000;
+      border-color: var(--green);
+      
+    }
+    .rbtn--solid { background: linear-gradient(120deg, #ffffff, #ffffff); color: #000000; border-color: transparent; }
+    .rbtn--solid::after { background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%); }
+    .rbtn--solid:hover {
+      background: linear-gradient(120deg, #0a0a0a, #000000);
+      color: var(--text);
+      border-color: var(--line-strong);
+      filter: none;
+      
+    }
+
+    /* ============ folder float dock (reactbits style) ============ */
+    .ff { position: fixed; left: 22px; top: 20px; z-index: 150; perspective: 800px; }
+    .ff__folder {
+      position: relative;
+      width: 86px; height: 60px;
+      animation: ffFloat 3.4s ease-in-out infinite;
+      
+    }
+    @keyframes ffFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    .ff__back {
+      position: absolute; inset: 0;
+      background: #0a0a0a;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px 12px 10px 10px;
+    }
+    .ff__front {
+      position: absolute; inset: 0; z-index: 2;
+      background: #141414;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px 12px 10px 10px;
+      display: grid; place-items: center;
+      transform-origin: bottom;
+      transition: transform 0.5s cubic-bezier(0.6, -0.28, 0.3, 1.4);
+    }
+    .ff:hover .ff__front { transform: rotateX(58deg); }
+    .ff__label {
+      font-family: var(--font-display); font-weight: 800;
+      font-size: 10px; letter-spacing: 0.24em;
+      color: var(--green); text-transform: uppercase;
+      
+    }
+    .ff__items {
+      /* box overlaps the folder so the hover chain never breaks across the gap */
+      position: absolute; top: 100%; left: 12px;
+      margin-top: -2px;
+      padding: 20px 8px 8px;
+      display: flex; flex-direction: column; gap: 7px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.28s, transform 0.35s var(--ease);
+      transform: translateY(-8px);
+    }
+    .ff__items::before {
+      content: '';
+      position: absolute; left: 30px; top: 3px;
+      width: 1.5px; height: 15px;
+      background: var(--line-strong);
+      transform: scaleY(0); transform-origin: top;
+      transition: transform 0.25s var(--ease);
+    }
+    .ff:hover .ff__items::before, .ff:focus-within .ff__items::before { transform: scaleY(1); }
+    .ff:hover .ff__items, .ff:focus-within .ff__items {
+      opacity: 1; transform: translateY(0);
+      pointer-events: auto;
+    }
+    .ff__item {
+      position: relative;
+      margin-left: 20px;
+      padding: 9px 14px;
+      font-family: var(--font-display); font-weight: 700;
+      font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      opacity: 0;
+      transform: translateX(-14px) scale(0.85);
+      transform-origin: left center;
+      transition: opacity 0.3s, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+    .ff__item::before {
+      content: '';
+      position: absolute; right: 100%; top: 50%;
+      width: 14px; height: 1.5px;
+      background: var(--line-strong);
+      transform: scaleX(0); transform-origin: right;
+      transition: transform 0.25s var(--ease);
+    }
+    .ff:hover .ff__item::before, .ff:focus-within .ff__item::before { transform: scaleX(1); }
+    .ff:hover .ff__item, .ff:focus-within .ff__item { opacity: 1; transform: translateY(0) scale(1); }
+    .ff:hover .ff__item:nth-child(1) { transition-delay: 0.05s; }
+    .ff:hover .ff__item:nth-child(2) { transition-delay: 0.12s; }
+    .ff:hover .ff__item:nth-child(3) { transition-delay: 0.19s; }
+    .ff:hover .ff__item:nth-child(4) { transition-delay: 0.26s; }
+    .ff:hover .ff__item:nth-child(5) { transition-delay: 0.33s; }
+    .ff:hover .ff__item:nth-child(1)::before { transition-delay: 0.06s; }
+    .ff:hover .ff__item:nth-child(2)::before { transition-delay: 0.13s; }
+    .ff:hover .ff__item:nth-child(3)::before { transition-delay: 0.2s; }
+    .ff:hover .ff__item:nth-child(4)::before { transition-delay: 0.27s; }
+    .ff:hover .ff__item:nth-child(5)::before { transition-delay: 0.34s; }
+    /* business menu type: clean corporate sans, tight and quiet. shared site type */
+    .ff__label, .ff__item {
+      font-family: var(--font-body);
+      font-weight: 700;
+      
+    }
+    .ff__label { font-size: 11.5px; letter-spacing: 0.18em; }
+    .ff__item { font-size: 12.5px; letter-spacing: 0.1em; }
+    .ff__item:hover, .ff__item:focus-visible {
+      color: #000000 !important;
+      background: var(--green);
+      border-color: var(--green);
+      
+      outline: none;
+    }
+    .ff__item.is-active { color: var(--green); }
+    .ff__item--cta { background: linear-gradient(135deg, #ffffff, #ffffff); color: #000000 !important;  }
+
+    @media (max-width: 560px) {
+      .ff { transform: scale(0.82); transform-origin: top left; }
+    }
+
+    /* ============ about loadout: gun tierlist + agents + pun ============ */
+    .loadout { margin-top: 26px; }
+    .loadout__title { font-size: clamp(20px, 3vw, 28px); margin-bottom: 4px; }
+    .loadout__sub { color: var(--muted); font-weight: 500; margin-bottom: 22px; font-size: 14.5px; }
+    .gun-grid { display: grid; grid-template-columns: repeat(3, minmax(230px, 1fr)); gap: 14px; }
+    @media (max-width: 900px) { .gun-grid, .agent-grid { grid-template-columns: 1fr; } }
+    .gun-card { border: 1px solid var(--line); background: var(--panel); padding: 18px 18px 14px; transition: border-color 0.25s, transform 0.25s var(--ease); }
+    /* independent `rotate` (not transform) so the hover lift never fights the tilt */
+    .gun-card:nth-child(odd) { rotate: -0.55deg; }
+    .gun-card:nth-child(even) { rotate: 0.55deg; }
+    .gun-card:hover { border-color: var(--line-strong); transform: translateY(-4px);  }
+    .gun-card__skin { display: grid; place-items: center; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--line); padding: 12px; margin-bottom: 14px; }
+    .gun-card__skin img { width: 100%; height: 110px; object-fit: contain;  }
+    .gun-card__head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .gun-card__head img { height: 30px; width: auto; opacity: 0.85; }
+    .gun-card__head h4 { font-size: 16px; letter-spacing: 0.06em; }
+    .gun-card__head span { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    .gun-card__stats { display: flex; gap: 8px; }
+    .gun-card__stats > div { flex: 1; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.4); padding: 8px 10px; text-align: center; }
+    .gun-card__stats b { display: block; font-weight: 700; font-size: 17px; color: var(--green); }
+    .gun-card__stats span { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    .agent-grid { display: grid; grid-template-columns: repeat(3, minmax(230px, 1fr)); gap: 14px; }
+    /* must sit after the rule above: it wins the cascade on narrow screens */
+    @media (max-width: 900px) { .agent-grid { grid-template-columns: 1fr; } }
+    .agent-card { position: relative; display: flex; gap: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); padding: 16px; transition: border-color 0.25s, transform 0.25s var(--ease); }
+    /* reactbits flavored: alternating tilt + a shine that sweeps through on hover */
+    .agent-card:nth-child(odd) { transform: rotate(-0.6deg); }
+    .agent-card:nth-child(even) { transform: rotate(0.6deg); }
+    .agent-card::after {
+      content: ''; position: absolute; top: -40%; bottom: -40%; left: 0; width: 40%;
+      background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+      transform: translateX(-260%) skewX(-16deg); transition: transform 0.7s var(--ease);
+      pointer-events: none;
+    }
+    .agent-card:hover { border-color: var(--line-strong); transform: translateY(-5px) rotate(0deg);  }
+    .agent-card:hover::after { transform: translateX(340%) skewX(-16deg); }
+    .agent-card__icon { width: 74px; height: 74px; object-fit: cover; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.5); flex: 0 0 auto; }
+    .agent-card__body { flex: 1; min-width: 0; }
+    .agent-card__body h4 { font-size: 16px; letter-spacing: 0.06em; }
+    .agent-card__body > span { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-bottom: 0; }
+    .agent-card__pun { font-size: 13px; font-weight: 500; color: #d5d5d5; }
+    .pun-box { margin-top: 18px; border: 1px dashed var(--line-strong); background: var(--green-soft); padding: 14px 18px; font-weight: 600; font-size: 15px; }
+    .pun-box b { color: var(--green); text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; display: block; margin-bottom: 4px; }
+
+    /* ============ hero ============ */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100svh;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 80px 24px 130px;
+    }
+    .hero__content { max-width: 900px; }
+    /* the hero keeps its own voice: wordmark + kicker + tagline + buttons are the one
+       pocket of the page that is NOT courier new. */
+    .hero__kicker, .hero__tagline, .hero__actions { font-family: var(--font-hero-keep); }
+
+    .hero__kicker {
+      font-weight: 600; letter-spacing: 0.38em;
+      font-size: clamp(10.5px, 1.3vw, 13px);
+      color: var(--muted); margin-bottom: 18px;
+    }
+
+    .hero__title {
+      font-family: var(--font-hero);
+      font-weight: 400; /* retroica ships one weight; synthetic bold looked glitchy */
+      font-size: clamp(50px, 10.5vw, 144px);
+      letter-spacing: 0.01em;
+      line-height: 1.1; /* retroica's tall caps need headroom or the O gets clipped */
+      padding-top: 0.12em;
+      background: linear-gradient(90deg, var(--blue) 0%, #ffffff 50%, var(--blue) 100%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 6s linear infinite;
+      
+      transition: filter 0.35s var(--ease), transform 0.35s var(--ease);
+      display: inline-block;
+    }
+    .hero__title:hover {
+      
+      transform: scale(1.02);
+    }
+    /* pans EXACTLY one full tile (200% of the element) per cycle, so the loop wraps
+       with zero jump. the old -220% value was never a whole tile once browser
+       background-position percentage math is applied - that snap was the "cut out". */
+    @keyframes shimmer { to { background-position: 200% 0; } }
+
+    .hero__tagline {
+      font-size: clamp(17px, 2.4vw, 24px);
+      font-weight: 500; line-height: 1.6; margin-top: 22px;
+      color: #d5d5d5;
+    }
+    .rot-box {
+      display: inline-block;
+      vertical-align: bottom;
+      text-align: left;
+      color: var(--green);
+      font-weight: 700;
+      overflow: hidden;
+      white-space: nowrap;
+      transition: width 0.25s var(--ease);
+    }
+
+    .hero__actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+    .hero__meta {
+      list-style: none;
+      display: flex; gap: 10px 22px; justify-content: center; flex-wrap: wrap;
+      margin-top: 36px;
+      font-weight: 500; letter-spacing: 0.08em; font-size: 12.5px;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .hero__meta .accent { margin-right: 2px; }
+
+    /* ============ hero floats: rank icons, hero only, never the whole page ============ */
+    .hero-floats { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+    .hero-floats .fl { position: absolute; opacity: 0; transition: opacity 0.4s var(--ease); will-change: transform; }
+    .hero-floats.is-on .fl {
+      animation: popIn 0.34s var(--ease) both, bob 2.4s ease-in-out infinite;
+    }
+    .hero-floats .fl-rank {
+      width: clamp(26px, 3.2vw, 44px); height: auto;
+      
+    }
+    @media (max-width: 720px) {
+      .hero-floats .fl-m { display: none; } /* keep small screens clean */
+      .hero-floats .fl-rank { width: clamp(22px, 6vw, 32px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-floats.is-on .fl { animation: none; opacity: 1; }
+    }
+
+    .scroll-hint {
+      position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 10px; letter-spacing: 0.3em;
+    }
+    .scroll-hint span {
+      width: 1px; height: 36px;
+      background: linear-gradient(180deg, var(--green), transparent);
+      animation: scrollPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0% { transform: scaleY(0); transform-origin: top; }
+      45% { transform: scaleY(1); transform-origin: top; }
+      55% { transform: scaleY(1); transform-origin: bottom; }
+      100% { transform: scaleY(0); transform-origin: bottom; }
+    }
+
+    /* ============ carousel: reactbits-style flex loop. tilts, contrast, never stops ============ */
+    .carousel {
+      position: relative; z-index: 1;
+      overflow: hidden;
+      padding: 34px 0 40px;
+      /* side fade so cards melt into the dark instead of hitting a wall */
+      mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+      transform: rotate(-1.6deg);
+    }
+    .carousel__track { display: flex; gap: 18px; width: max-content; will-change: transform; }
+    .carousel__card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 26px;
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-weight: 600; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+      transition: transform 0.3s var(--ease), border-color 0.3s, color 0.3s, background 0.3s;
+    }
+    .carousel__card.is-accent { color: var(--text); }
+    .carousel__card:hover {
+      transform: translateY(-3px);
+      border-color: #ffffff;
+      background: #ffffff;
+      color: #000000;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .carousel__track { animation: none; }
+    }
+
+    /* ============ sections ============ */
+    .section { position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; padding: clamp(76px, 10vh, 116px) 24px 40px; }
+    .section__head { display: flex; align-items: center; gap: 18px; margin-bottom: clamp(32px, 5vh, 52px); }
+    .section__title { font-size: clamp(28px, 4.8vw, 48px); }
+    .section__title.lower { text-transform: none; letter-spacing: 0; }
+    .section__line { display: none; }
+
+    .spot {
+      position: relative;
+      background: var(--glass);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: clamp(22px, 4vw, 36px);
+      overflow: hidden;
+    }
+    .spot::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: transparent;
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .spot:hover::before { opacity: 1; }
+
+    /* the nutshell card sits at a slight angle: a portfolio tilt, straightens on hover */
+    #about > .spot:not(.loadout) { rotate: -0.7deg; transition: rotate 0.4s var(--ease); }
+    #about > .spot:not(.loadout):hover { rotate: 0deg; }
+
+    .about__lead { font-size: clamp(19px, 2.8vw, 27px); font-weight: 500; line-height: 1.6; max-width: 780px; color: #e5e5e5; }
+    .about__lead .u { color: var(--green); font-weight: 600; }
+
+    .about__chips { list-style: none; display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+    .about__chips li {
+      font-weight: 600; font-size: 12px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 9px 16px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      transition: border-color 0.25s, color 0.25s, transform 0.25s var(--ease);
+    }
+    .about__chips li:hover { border-color: var(--line-strong); color: var(--text); transform: translateY(-3px); }
+
+    /* index keeps the tier-1 icons: iron 1, gold 1, diamond 1, asc 1, imm 1, radiant */
+    .rank-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 30px; align-items: center; }
+    .rank-row img { height: 34px; width: auto; opacity: 0.55; transition: opacity 0.25s, transform 0.25s var(--ease), filter 0.25s; }
+    .rank-row img:hover { opacity: 1; transform: translateY(-4px) scale(1.12);  }
+    .rank-row img.is-me { height: 44px; opacity: 1; animation: rankPulse 2.6s ease-in-out infinite; }
+    @keyframes rankPulse {
+      0%, 100% {  }
+      50% {  }
+    }
+
+    .about__note { margin-top: 30px; color: var(--muted); font-size: 15.5px; max-width: 640px; }
+
+    .range-cta { text-align: center; }
+    .range-cta .big {
+      font-family: 'Retroica', var(--font-display);
+      font-size: clamp(28px, 4.2vw, 46px);
+      letter-spacing: 0.03em;
+      margin-bottom: 12px;
+      
+    }
+    .range-cta .desc { color: var(--muted); font-weight: 500; max-width: 560px; margin: 0 auto 28px; font-size: 16.5px; }
+    .range-note { margin-top: 18px; text-align: center; color: var(--muted); font-size: 13.5px; letter-spacing: 0.06em; }
+
+
+    .footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--line);
+      padding: 44px 24px 130px;
+      text-align: center; color: var(--muted); font-size: 14px;
+    }
+    .footer__emblem { display: block; width: 56px; height: 56px; margin: 0 auto 10px; }
+    .footer__logo { font-family: var(--font-hero); font-weight: 800; font-size: 26px; color: var(--text); letter-spacing: 0.02em; margin-bottom: 8px;  }
+    .footer__actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 18px 0 8px; }
+    .copy-btn {
+      font-family: var(--font-body); font-size: 12.5px; font-weight: 600;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      padding: 10px 16px; letter-spacing: 0.06em;
+      transition: border-color 0.25s, background 0.25s;
+    }
+    .copy-btn:hover { border-color: var(--line-strong); background: var(--green-soft); }
+    .copy-toast { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: var(--green); opacity: 0; transform: translateY(4px); transition: opacity 0.25s, transform 0.25s; margin-left: 8px; align-self: center; }
+    .copy-toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
+    .reveal.is-visible { opacity: 1; transform: none; }
+
+    /* ============ scroll extras: quiet, transform/opacity only ============
+       1. the section headings lift in word by word out of a mask
+       2. loadout cards + chips fade up in a stagger as they arrive
+       3. a hairline draws across a panel as it arrives
+       all of them are driven by scroll/intersection, none of them loop. */
+
+
+    /* clip-path, not overflow:hidden. an inline-block with hidden overflow loses its
+       text baseline (it falls back to the bottom margin edge), which is what threw the
+       words out of alignment and forced the padding hack that clipped descenders.
+       clipping keeps the box in normal inline flow, so spacing stays exactly as typed. */
+    .w {
+      display: inline-block;
+      clip-path: inset(-25% -12% 100% -12%);
+      transition: clip-path 0.8s var(--ease);
+      transition-delay: calc(var(--i, 0) * 55ms);
+    }
+    .w > i {
+      display: inline-block; font-style: inherit;
+      opacity: 0; transform: translateY(0.42em);
+      transition: opacity 0.55s var(--ease), transform 0.8s var(--ease);
+      transition-delay: calc(var(--i, 0) * 55ms);
+    }
+    .is-revealed .w { clip-path: inset(-25% -12% -25% -12%); }
+    .is-revealed .w > i { opacity: 1; transform: none; }
+
+    /* opacity only: the cards already own transform (tilt/lift), so a rise would
+       fight them. the stagger does the work instead. */
+    .fade-in { opacity: 0; transition: opacity 0.75s var(--ease); transition-delay: var(--d, 0s); }
+    .fade-in.is-visible { opacity: 1; }
+
+    .spot::after {
+      content: ''; position: absolute; top: 0; left: 0; height: 1px; width: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+      transform: scaleX(0); transform-origin: 0 50%;
+      transition: transform 1.2s var(--ease) 0.15s;
+      pointer-events: none;
+    }
+    .spot.is-visible::after { transform: scaleX(1); }
+
+    /* ============ flat mode: black + white ============ */
+    * {   filter: none !important; }
+    .rbtn, .rbtn--solid { background: transparent; color: var(--text); border-color: var(--line-strong); }
+    .rbtn:hover, .rbtn--solid:hover { background: #ffffff; color: #000000; border-color: #ffffff; }
+    .rbtn::after, .rbtn--solid::after { background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%); }
+    .ff__item--cta { background: #ffffff; color: #000000 !important; }
+    .ff__item:hover, .ff__item:focus-visible { background: #ffffff; color: #000000 !important; border-color: #ffffff; }
+
+    /* dock: strictly monochrome, kill browser default link/visited/focus blues */
+    .ff__item:link, .ff__item:visited { color: #8b8b8b; }
+    .ff__item.is-active:link, .ff__item.is-active:visited { color: #ffffff; }
+    .ff__item--cta:link, .ff__item--cta:visited { color: #000000 !important; }
+    .ff__item, .ff__item:focus { outline: none; }
+    .ff__item:focus-visible { outline: 1px solid #ffffff; outline-offset: 2px; background: #ffffff; color: #000000 !important; }
+    .ff__folder, .ff__folder:focus, .ff__folder:focus-visible { outline: none; }
+
+    /* ============ react-bits "tech text" wordmark ============ */
+    .hero__title--tech {
+      position: relative;
+      display: block;
+      width: min(92vw, 800px);
+      height: clamp(120px, 18vw, 220px);
+      margin: 0 auto;
+      font-family: var(--font-hero-keep);
+      letter-spacing: 0;
+      background: none;
+      -webkit-text-fill-color: currentColor;
+      color: #ffffff;
+      animation: none;
+      cursor: default;
+      overflow: visible;
+    }
+    /* the canvas is deliberately larger than the visible title so a letter can be
+       dragged well outside the wordmark before it ever clips */
+    .hero__title--tech canvas {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(100% + 640px);
+      height: calc(100% + 320px);
+      max-width: none;
+      pointer-events: none;
+    }
+    @media (max-width: 720px) {
+      .hero__title--tech canvas { width: calc(100% + 280px); height: calc(100% + 200px); }
+    }
+
+    /* ============ pre-redesign face: ONLY the words the user asked for ============
+       these titles + buttons go back to the old display sans. every card body, stat
+       and subtext stays courier new via --font-body. */
+    .loadout__title,
+    .gun-card__head h4,
+    .agent-card__body h4,
+    #dojo .section__title { font-family: var(--font-prev); font-weight: 800; }
+    .hero__actions .rbtn,
+    #dojo .rbtn,
+    .footer__actions a[href="#dojo"] { font-family: var(--font-prev); }
+
+    /* metallic white accent type: monochrome sheen, no colour */
+    .accent {
+      background: linear-gradient(180deg, #ffffff 0%, #8f8f8f 46%, #ffffff 58%, #c9c9c9 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+
+    @media (max-width: 560px) {
+      .hero__actions .rbtn { width: 100%; }
+      .rank-row { gap: 14px; }
+      .rank-row img { height: 28px; }
+      .rank-row img.is-me { height: 36px; }
+      .footer { padding-bottom: 120px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+      .fade-in { opacity: 1; }
+      .w { clip-path: none; }
+      .w > i { opacity: 1; transform: none; transition-delay: 0s !important; }
+      .spot::after { transform: scaleX(1); }
+      #cur { display: none; }
+      .page { opacity: 1; }
+    }
+  

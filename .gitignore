@@ -1,0 +1,4 @@
+.freebuff/
+.openai/
+node_modules/
+.task-*
