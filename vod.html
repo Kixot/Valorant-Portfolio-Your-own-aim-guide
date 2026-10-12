@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>VOD Review | Kixot</title>
-  <meta name="description" content="Kixot&#x27;s vod review page. VOD review tools coming soon." />
+  <meta name="description" content="Review YouTube and local VODs, mark round starts and tag mistakes. Save reviews in your browser." />
   <link rel="canonical" href="https://www.kixotgg.com/vod.html" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="VOD Review | Kixot" />
-  <meta property="og:description" content="Kixot&#x27;s vod review page. VOD review tools coming soon." />
+  <meta property="og:description" content="Review YouTube and local VODs, mark round starts and tag mistakes. Save reviews in your browser." />
   <meta property="og:url" content="https://www.kixotgg.com/vod.html" />
   <meta property="og:image" content="https://www.kixotgg.com/assets/img/og.png" />
   <meta property="og:image:width" content="1200" />
@@ -16,21 +17,22 @@
   <meta property="og:image:alt" content="Kixot wordmark on a black background" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="VOD Review | Kixot" />
-  <meta name="twitter:description" content="Kixot&#x27;s vod review page. VOD review tools coming soon." />
+  <meta name="twitter:description" content="Review YouTube and local VODs, mark round starts and tag mistakes. Save reviews in your browser." />
   <meta name="twitter:image" content="https://www.kixotgg.com/assets/img/og.png" />
   <meta name="theme-color" content="#000000" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-  <link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/site.css" />
   <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/navigation.css" />
+  <link rel="stylesheet" href="css/vod.css" />
 </head>
-<body class="tool-page">
+<body class="tool-page vod-page">
   <div id="cur" aria-hidden="true"></div>
   <header>
   <nav class="ff" aria-label="Site">
     <div class="ff__folder">
       <div class="ff__back"></div>
-      <button type="button" class="ff__front" aria-label="Open site menu" aria-expanded="false" aria-controls="siteMenu"><span class="ff__label">KIXOT</span></button>
+      <button type="button" class="ff__front" aria-label="Open site menu" aria-expanded="false" aria-controls="siteMenu"><span class="ff__label">Kixot</span></button>
       <div class="ff__items" id="siteMenu">
         <a class="ff__item" href="index.html#top" data-section="top">home</a>
         <a class="ff__item" href="index.html#about" data-section="about">about</a>
@@ -40,14 +42,56 @@
       </div>
     </div>
   </nav>
+  <a class="rbtn vod-home" href="index.html">Back to home</a>
   </header>
   <main id="top">
     <section class="section" aria-label="VOD Review">
-      <div class="section__head reveal"><h2 class="section__title">VOD Review</h2></div>
-      <div class="spot tool-placeholder reveal" aria-label="VOD Review placeholder">
-        <p class="tool-placeholder__status">VOD reviewer coming soon.</p>
-        <div class="tool-placeholder__actions"><a class="rbtn rbtn--solid" href="index.html#vod">Back to VOD preview</a></div>
+      <div class="section__head"><h2 class="section__title">VOD Review</h2></div>
+      <div class="vod-card" id="vodSources">
+        <form id="youtubeForm" class="vod-source-form">
+          <label for="youtubeUrl">YouTube link</label>
+          <input id="youtubeUrl" type="text" inputmode="url" maxlength="2048" placeholder="https://www.youtube.com/watch?v=..." required />
+          <button class="rbtn rbtn--solid" type="submit">Load YouTube</button>
+        </form>
+        <div class="vod-local-source"><label class="vod-file-label" for="localFile">Local video<input id="localFile" type="file" accept="video/*,.mp4,.webm,.ogv,.mov,.m4v" /></label><p>Your file never uploads.</p></div>
       </div>
+      <p id="vodStorageStatus" class="vod-storage" role="status" aria-live="polite"></p>
+      <p id="vodStatus" class="vod-status" role="status" aria-live="polite"></p>
+      <div class="vod-player-card">
+        <p id="activeVideo" class="vod-video-name">Choose a video</p>
+        <div class="vod-player-frame">
+          <div id="playerEmpty">Choose a video</div>
+          <div id="youtubeHost" hidden></div>
+          <video id="localPlayer" controls playsinline preload="metadata" hidden></video>
+        </div>
+        <div class="vod-player-actions"><button class="rbtn" id="markRound" type="button" disabled>Mark my point</button><button class="rbtn" id="tagMistake" type="button" disabled>Tag a mistake</button></div>
+      </div>
+      <div id="reviewWorkspace" hidden>
+        <section class="vod-card" aria-label="Estimated round starts">
+          <h3>Estimated round starts</h3>
+          <p class="vod-empty">Time based estimates, not gameplay detection.</p>
+          <div class="vod-actions" id="autoRoundList"></div><p class="vod-empty" id="autoRoundEmpty">Waiting for video duration.</p>
+          <details class="vod-round-settings"><summary>Adjust estimates</summary><form id="roundTimingForm" class="vod-source-form"><label>First round (seconds)<input id="roundFirst" inputmode="decimal" required value="0" /></label><label>Round spacing (seconds)<input id="roundInterval" type="number" min="30" max="600" required value="130" /></label><button class="rbtn" type="submit">Update estimates</button></form></details>
+        </section>
+        <form class="vod-card vod-tag-form" id="mistakeForm" hidden>
+          <label for="mistakeTime">Time (seconds or mm:ss)<input id="mistakeTime" type="text" inputmode="decimal" required maxlength="16" /></label>
+          <label for="mistakeType">Type<select id="mistakeType"></select></label>
+          <label for="mistakeNote">Note (optional)<textarea id="mistakeNote" rows="3" maxlength="1000"></textarea></label>
+          <div class="vod-actions"><button class="rbtn rbtn--solid" type="submit">Save mistake</button><button class="rbtn" id="cancelMistake" type="button">Cancel</button></div>
+        </form>
+        <div class="vod-review-grid">
+          <section class="vod-card" aria-label="My points"><h3>My points</h3><ul class="vod-entries" id="roundList"></ul></section>
+          <section class="vod-card" aria-label="Mistakes"><h3>User tagged mistakes</h3><ul class="vod-entries" id="mistakeList"></ul></section>
+        </div>
+        <section class="vod-card vod-count-section" aria-label="Common mistakes">
+          <h3>User tagged counts</h3><div class="vod-count-grid"><div id="mistakeChart" aria-hidden="true"></div><table class="vod-count-table"><caption class="sr-only">User tagged mistake counts</caption><thead><tr><th scope="col">Type</th><th scope="col">Count</th></tr></thead><tbody id="mistakeCounts"></tbody></table></div>
+        </section>
+      </div>
+      <div class="vod-card vod-actions">
+        <button class="rbtn" id="exportReviewText" type="button" disabled>Export text</button><button class="rbtn" id="exportReviewJson" type="button" disabled>Export JSON</button><button class="rbtn" id="shareReview" type="button" disabled>Share text</button><button class="rbtn" id="deleteReview" type="button" disabled>Delete review</button>
+      </div>
+      <div class="vod-card" id="manualShare" hidden><label for="shareText">Copy review text</label><textarea id="shareText" rows="8" readonly></textarea><button class="rbtn" id="closeShare" type="button">Close</button></div>
+      <details class="vod-card vod-saved"><summary>Saved reviews</summary><p id="savedEmpty" class="vod-empty">No saved reviews yet.</p><ul id="savedReviews" class="vod-entries"></ul><div class="vod-actions"><button class="rbtn" id="exportAllReviews" type="button" disabled>Export all JSON</button><button class="rbtn" id="importReviewsButton" type="button">Import JSON</button><input id="importReviews" type="file" accept=".json,application/json" hidden /></div></details>
     </section>
   </main>
     <footer class="footer">
@@ -62,6 +106,10 @@
         <span class="copy-toast" id="copyToast">copied !!</span>
       </div>
     </footer>
+  <script src="js/analytics.js" defer></script>
   <script src="js/shared.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+  <script src="js/vod-core.js" defer></script>
+  <script src="js/vod.js" defer></script>
 </body>
 </html>

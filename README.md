@@ -4,7 +4,7 @@ Static HTML, CSS and JavaScript. No build step or server-side code.
 
 - `index.html`: existing hero, portfolio and Dojo/VOD previews.
 - `dojo.html`: mode chooser, quick start, plan builder, range sensitivity and local progress.
-- `vod.html`: VOD reviewer placeholder for prompt 3.
+- `vod.html`: YouTube/local review, estimated round links, custom points, mistake tags and local saves.
 - `css/`, `js/`, `assets/`: styles, behavior and existing site assets.
 - `training.html` and `pages/training.html`: compatibility redirects to the Dojo.
 
@@ -14,7 +14,13 @@ Sensitivity uses 0.07 degrees per raw mouse count per sens point for Valorant. T
 
 Progress uses `kixot_drill_progress_v1` with a versioned JSON schema. Completed runs record date, mode, difficulty, DPI, sens, score and accuracy. Imports validate the complete file and merge unique run IDs. Invalid storage is preserved; unavailable or full storage keeps new results in memory for export. Clear requires confirmation. Exports are JSON, with no account or network storage.
 
-The shared target cursor reimplements the bracket animation in plain JavaScript, inspired by [React Bits Target Cursor](https://reactbits.dev/animations/target-cursor). Pointer coordinates have no transition. Hover brackets animate separately; sliders keep the plus cursor. Touch, coarse-pointer and reduced-motion users retain the native cursor. The cursor mounts inside the active fullscreen element and returns on exit. Coding-style fonts are used outside the original hero.
+The shared cursor stays a plus and becomes a dot over interactive controls. Pointer coordinates have no transition. Sliders keep the plus; text fields, dropdowns and video controls retain native cursors. Touch, coarse-pointer and reduced-motion users retain the native cursor. It mounts inside the active fullscreen element and returns on exit. Coding-style fonts remain outside the original hero; the folder menu uses the Apple system font stack with platform fallbacks.
+
+The black folder and branched menu are vanilla adaptations of React Bits, with the source license in `THIRD_PARTY_NOTICES.md`. The folder label reads Kixot and the gap beneath it keeps the menu open while crossing into its branches.
+
+VOD reviews are versioned browser saves, with JSON/text export, JSON import and plain-text sharing. Local files use object URLs and never upload. Round links are automatically generated time estimates, not gameplay detection; custom points remain available. The official YouTube API loads near the source controls and keeps a matching origin and an explicit referrer policy.
+
+Analytics is default off and unconfigured. Add your measurement ID only at the marked line in `js/analytics.js`. The popup can be reopened from the footer. Follow [the GA4 setup instructions](docs/analytics.md) and [validation report](docs/validation.md).
 
 Validation covers exact drill yaw, quick start, the plan builder, three modes, pause/resume, fullscreen, touch controls, mobile pixel ratio, hidden-tab pause, progress persistence, import/export, corruption/quota failures and layouts at 360, 390, 768 and 1440 pixels.
 

@@ -1,0 +1,46 @@
+const { chromium } = require('playwright');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+(async () => {
+  const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
+  try {
+    const context = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+    const source = fs.readFileSync('js/analytics.js', 'utf8').replace("const GA_MEASUREMENT_ID = '';", "const GA_MEASUREMENT_ID = 'G-ABCDEF1234';");
+    await context.route('**/js/analytics.js', route => route.fulfill({ contentType: 'text/javascript', body: source }));
+    await context.route('https://www.googletagmanager.com/**', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
+    const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.goto((process.env.SITE_TEST_URL || 'http://127.0.0.1:4174') + '/dojo.html');
+    await page.getByRole('button', { name: 'Accept', exact: true }).click();
+    await page.locator('#btnQuick').click(); await page.waitForFunction(() => window.THREE);
+    await page.locator('#ovBtn').click();
+    await page.waitForFunction(() => window.__range.state.playing && !window.__range.state.paused && !window.__range.state.counting);
+    const initial = await page.evaluate(() => window.__range.state); assert.equal(initial.mode, 'flick'); assert.ok(initial.timeLeft > 29);
+    assert.equal(await page.locator('.mode-btn[data-mode="precision"]').isDisabled(), true);
+    assert.equal(await page.locator('#myProgress').isVisible(), false);
+    await page.evaluate(() => window.__range.setMode('track')); assert.equal(await page.evaluate(() => window.__range.state.mode), 'flick');
+    await page.keyboard.press('Escape'); assert.equal(await page.evaluate(() => window.__range.state.paused), true);
+    await page.evaluate(() => window.__range.setMode('track')); assert.equal(await page.evaluate(() => window.__range.state.mode), 'flick');
+    await page.locator('#ovBtn').click();
+    await page.waitForTimeout(1200); assert.equal(await page.evaluate(() => window.__range.state.mode), 'flick');
+    await page.waitForFunction(() => !window.__range.state.playing, null, { timeout: 40000 });
+    assert.equal(await page.locator('#myProgress').isVisible(), true); assert.equal(await page.evaluate(() => window.__range.state.mode), 'flick');
+    const events = await page.evaluate(() => window.dataLayer.filter(item => item[0] === 'event').map(item => [...item]));
+    assert.equal(events.filter(item => item[1] === 'dojo_opened').length, 1);
+    assert.equal(events.filter(item => item[1] === 'drill_started').length, 1);
+    assert.equal(events.filter(item => item[1] === 'drill_completed').length, 1);
+    const runs = await page.evaluate(() => JSON.parse(localStorage.getItem('kixot_drill_progress_v1'))); assert.ok(JSON.stringify(runs).includes('flick'));
+    await page.locator('.mode-btn[data-mode="track"]').click(); assert.equal(await page.evaluate(() => window.__range.state.mode), 'track');
+    assert.deepEqual(errors, []);
+    console.log('Full 30-second run, ESC pause/resume, mode locking, progress visibility and success-only analytics passed.');
+    await context.close();
+    const desktop = await browser.newContext({ viewport: { width: 1440, height: 1000 } }); const full = await desktop.newPage();
+    await full.goto((process.env.SITE_TEST_URL || 'http://127.0.0.1:4174') + '/dojo.html?quick=1'); await full.getByRole('button', { name: 'Decline', exact: true }).click();
+    await full.locator('#ovFs').click(); await full.waitForFunction(() => !!document.fullscreenElement);
+    const box = await full.locator('#ovBtn').boundingBox(); await full.mouse.move(box.x + 8, box.y + 8); await full.waitForTimeout(50);
+    assert.equal(await full.evaluate(() => document.fullscreenElement.contains(document.querySelector('#cur'))), true);
+    assert.equal(await full.locator('#cur').evaluate(node => node.classList.contains('is-visible')), true);
+    await full.evaluate(() => document.exitFullscreen());
+    assert.equal(await full.locator('#cur').evaluate(node => node.parentElement === document.body), true);
+    await desktop.close(); console.log('Fullscreen keeps the plus/dot cursor inside the visible range.');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

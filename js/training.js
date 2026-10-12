@@ -331,16 +331,15 @@
       }
 
       /* the guide leads, but it never locks anyone out: every mode stays playable.
-         only a LIVE run locks the buttons. while paused they stay live so the
-         player can bail out to another exercise (that run's progress is lost). */
+         an unfinished run keeps its mode, including while paused. the
+         player chooses another exercise after the current run ends. */
       const syncModeButtons = () => {
-        const live = (playing && !paused) || counting;
         const busy = playing || counting;
         document.querySelectorAll('#rngSens, #optDiffLive button, #btnQuick, #btnBackPlan, #btnChooseMode').forEach(control => { control.disabled = busy; });
         $('#myProgress').hidden = busy;
         document.querySelector('a[href="#myProgress"]').hidden = busy;
         document.querySelectorAll('.mode-btn').forEach((b) => {
-          b.disabled = live;
+          b.disabled = busy;
         });
       };
 
@@ -540,6 +539,12 @@
       let targets = [];
       let stats = { flick: null, precision: null, track: null };
       let runConfiguration = null;
+      let runStarted = false;
+      const markDrillStarted = () => {
+        if (runStarted || !playing || paused || counting) return;
+        runStarted = true;
+        window.KixotAnalytics?.track('drill_started', { drill_mode: mode, difficulty: runConfiguration.difficulty });
+      };
       let lastT = 0, rafId = null, countdownTimer = null, lockPending = false;
       let holding = false;
 
@@ -873,7 +878,6 @@
       const start = () => {
         if (counting || (playing && !paused) || $('#stepSettings').classList.contains('hidden')) return;
         if (!$('#rngSens').reportValidity()) return;
-        cancelNext();
         if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); start(); }).catch(() => {}); return; }
         if (!renderer) init3d();
         resizeXhLayer();
@@ -881,6 +885,7 @@
         paused = false;
         score = 0; hits = 0; shots = 0; streak = 0; bestStreak = 0; onT = 0; holding = false;
         runConfiguration = { sens: settings.sens, dpi: settings.dpi, difficulty: diff.short };
+        runStarted = false;
         timeLeft = MODES[mode].dur;
         clearTargets();
         for (let i = 0; i < MODES[mode].field; i++) spawnTarget();
@@ -936,6 +941,7 @@
             counting = false;
             syncModeButtons();
             lastT = performance.now();
+            markDrillStarted();
             updateHud();
             rangeNote.textContent = isTouch ? 'drag to aim · tap to shoot'
               : (mode === 'track' ? 'HOLD left mouse on the bot · esc to pause' : 'aiming · click to shoot · esc to pause');
@@ -983,6 +989,7 @@
           overlay.classList.add('is-hidden');
           rangeNote.textContent = mode === 'track' ? 'HOLD left mouse on the bot · esc to pause' : 'aiming · click to shoot · esc to pause';
           syncModeButtons();
+          markDrillStarted();
           return;
         }
         /* the browser refuses re-locks for a beat after esc. wait for the lock to
@@ -1004,24 +1011,8 @@
         }, 1600);
       };
 
-      /* individual mode keeps rolling on its own: 5s after a run ends the next
-         exercise loads and its countdown just goes. clicking either end-of-run
-         button cancels the timer so the player never fights it. */
-      let nextTimer = null;
-      const cancelNext = () => { if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; } };
-      const scheduleNextExercise = (m) => {
-        cancelNext();
-        nextTimer = setTimeout(() => {
-          nextTimer = null;
-          if (playing || paused || document.hidden) return;
-          const b = document.querySelector('.mode-btn[data-mode="' + m + '"]');
-          if (b && !b.disabled) b.click();
-          start();
-          if (!isTouch) safeLock();
-        }, 5000);
-      };
+      /* Modes change only through a choice made outside an unfinished drill. */
       const runNextExercise = (m) => {
-        cancelNext();
         const b = document.querySelector('.mode-btn[data-mode="' + m + '"]');
         if (b && !b.disabled) b.click();
         start();
@@ -1030,6 +1021,7 @@
 
       const end = () => {
         if (!playing) return; /* never score the same run twice (end can fire from the loop and a finish()) */
+        const completed = timeLeft <= 0 && runStarted;
         playing = false;
         paused = false;
         holding = false;
@@ -1056,6 +1048,7 @@
 
         const s = stats[mode];
         window.KixotProgress.addRun(s);
+        if (completed) window.KixotAnalytics?.track('drill_completed', { drill_mode: mode, difficulty: s.diff });
         const rank = runBenchFor(mode).find((r) => s.score >= r.min) || runBenchFor(mode)[runBenchFor(mode).length - 1];
         ovBig.textContent = s.score;
         ovBig.classList.add('is-showing');
@@ -1071,7 +1064,6 @@
         if (session && session.guided && stepNow && mode === stepNow.mode) {
           /* guided owns its own order, so the primary button is already the next
              exercise and no second button (or auto-roll) is needed */
-          cancelNext();
           ovBtn2.hidden = true;
           const nextMode = sessionAdvance();
           if (nextMode === 'done') {
@@ -1097,12 +1089,10 @@
           const order = ['flick', 'precision', 'track'];
           const oi = order.indexOf(mode);
           if (oi !== -1 && oi < order.length - 1) {
-            /* "next exercise" sits below run it back, and the next one still rolls
-               itself after 5s so the hands never idle */
+            /* The next exercise stays a deliberate choice after the full run. */
             ovBtn2.hidden = false;
             ovBtn2.textContent = 'next exercise';
             ovBtn2.dataset.mode = order[oi + 1];
-            scheduleNextExercise(order[oi + 1]);
           } else ovBtn2.hidden = true;
         }
 
@@ -1243,10 +1233,10 @@
       /* ================= mode buttons ================= */
       document.querySelectorAll('.mode-btn').forEach((b) => {
         b.addEventListener('click', () => {
+          if (playing || counting) return;
           /* switching exercises from the pause menu drops the current run. say so,
              so nobody wonders where their score went */
           const dropped = playing && paused;
-          cancelNext();
           document.querySelectorAll('.mode-btn').forEach((o) => o.classList.remove('is-active'));
           b.classList.add('is-active');
           mode = b.dataset.mode;
@@ -1305,6 +1295,7 @@
             lastT = performance.now();
             overlay.classList.add('is-hidden');
             syncModeButtons();
+            markDrillStarted();
           }
           return;
         }
@@ -1388,7 +1379,6 @@
       ovBtn.addEventListener('click', () => {
         const action = ovBtn.dataset.action || 'same';
         if (action === 'resume') { resumeRun(); return; }
-        cancelNext();
         if (action === 'results') {
           $('#btnResults').click();
           return;
@@ -1524,7 +1514,6 @@
       });
       const resetExercise = () => {
         if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-        cancelNext();
         playing = false; paused = false; counting = false; holding = false; lockPending = false;
         if (locked) document.exitPointerLock();
         syncModeButtons();
@@ -1622,5 +1611,6 @@
         get cameraPitch() { return pitch; }
       };
       if (new URLSearchParams(location.search).get('quick') === '1') $('#btnQuick').click();
+      window.KixotAnalytics?.track('dojo_opened');
     })();
 

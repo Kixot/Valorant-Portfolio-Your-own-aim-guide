@@ -7,6 +7,11 @@
 body, button, input, select, textarea { font-family: var(--font-body); }
 .hero { --font-body: 'Outfit', 'Segoe UI', sans-serif; --font-display: 'Outfit', 'Segoe UI', sans-serif; --font-prev: 'Outfit', 'Segoe UI', sans-serif; }
 [hidden] { display: none !important; }
+.analytics-choice { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 20px; background: #000b; font-size: 13px; }
+.analytics-choice button, .analytics-toggle { color: #ccc; background: #050505; border: 1px solid #444; padding: 10px 14px; cursor: pointer; font-size: 12px; }
+.analytics-choice #analyticsPanel { border: 1px solid #444; padding: 24px; background: #050505; width: 300px; max-width: 100%; }
+.analytics-choice #analyticsPanel button { margin-right: 8px; }
+.analytics-state { color: #888; margin: 5px 0 12px; }
 h2, h3, h4, .range-cta .big, .footer__logo,
 .ff__label, .ff__item, .ff .ff__label, .ff .ff__item, #ovBig { font-family: var(--font-body); }
 h2, h3, h4 { font-weight: 600; }
@@ -34,7 +39,7 @@ main, .section, .spot, .wrap, .gun-card, .agent-card, .agent-card__body { min-wi
 
 /* Pointer coordinates are never transitioned or interpolated. */
 html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
-#cur { transition: none; }
+#cur { transition: none; z-index: 11000; }
 #cur.is-hover { background: none; }
 #cur::after {
   content: '';
@@ -47,12 +52,7 @@ html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
   opacity: 0;
 }
 #cur.is-hover::after { opacity: 1; }
-.cur__corner { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border: 0 solid #fff; opacity: 0; transition: opacity .12s; }
-#cur.is-hover .cur__corner { opacity: 1; }
-.cur__corner--tl { border-top-width: 2px; border-left-width: 2px; }
-.cur__corner--tr { border-top-width: 2px; border-right-width: 2px; }
-.cur__corner--br { border-bottom-width: 2px; border-right-width: 2px; }
-.cur__corner--bl { border-bottom-width: 2px; border-left-width: 2px; }
+#cur::after { border-radius: 50%; }
 
 .ff__front { padding: 0; color: inherit; font: inherit; cursor: pointer; }
 .ff__folder:focus-within .ff__front { transform: rotateX(58deg); }

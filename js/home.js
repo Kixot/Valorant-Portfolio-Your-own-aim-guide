@@ -239,7 +239,7 @@
       }
 
       /* ============ folder float dock: active section ============ */
-      const ffLinks = [...document.querySelectorAll('.ff__item[data-section]')];
+      const ffLinks = [...document.querySelectorAll('.site-link[data-section], .ff__item[data-section]')];
       if (ffLinks.length) {
         const secs = ffLinks
           .map((l) => document.querySelector(l.dataset.section === 'top' ? '#hero' : '#' + l.dataset.section))
@@ -997,4 +997,3 @@
         return { setText: (t) => { s.text = t; layoutKey = ''; wake(); } };
       }
     })();
-  
