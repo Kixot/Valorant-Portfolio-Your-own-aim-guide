@@ -24,10 +24,6 @@
   <link rel="preconnect" href="https://media.valorant-api.com" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <!-- crete round carries every title; body copy is courier new (a system face, no download).
-       outfit is only here for the handful of words that revert to the pre-redesign face. -->
-  <link rel="preload" href="assets/fonts/crete-round-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/site.css" />
   <link rel="stylesheet" href="css/training.css" />
   <link rel="stylesheet" href="css/shared.css" />
@@ -50,6 +46,7 @@
       </div>
     </div>
   </nav>
+  <a class="rbtn dojo-home" href="index.html">Back to home</a>
   </header>
 
   <main class="wrap" id="top">
@@ -57,35 +54,21 @@
       <h2 class="stage-title">THE <span class="accent">DOJO</span></h2>
       <a class="rbtn" href="#myProgress">My progress</a>
     </div>
-    <div class="card quick-start">
+    <div class="card quick-start" id="dojoLauncher">
+      <div class="launcher-modes" role="group" aria-label="Mode">
+        <button class="launcher-mode is-active" data-launch-mode="flick" aria-pressed="true" type="button">Flick</button>
+        <button class="launcher-mode" data-launch-mode="precision" aria-pressed="false" type="button">Precision</button>
+        <button class="launcher-mode" data-launch-mode="track" aria-pressed="false" type="button">Tracking</button>
+      </div>
       <div class="quick-start__controls">
-        <label for="quickMode">Mode</label>
-        <select class="dojo-select" id="quickMode"><option value="flick">Flick</option><option value="precision">Precision</option><option value="track">Tracking</option></select>
-        <button class="rbtn rbtn--solid" id="btnQuick" type="button">Quick start - 30s</button>
+        <button class="rbtn rbtn--solid" id="btnQuick" type="button">Quick 30</button>
+        <button class="rbtn" id="btnOpenPlan" type="button">Build my plan</button>
       </div>
-      <button class="rbtn" id="btnOpenPlan" type="button">Build my plan</button>
     </div>
-    <section class="card sensitivity-tools" aria-label="Sensitivity">
-      <div class="sensitivity-grid">
-        <label for="inpDpi">DPI<input class="dojo-number" id="inpDpi" type="number" min="50" max="64000" step="1" value="800" inputmode="numeric" /></label>
-        <label for="rngSens">In-game sens<input class="dojo-number" id="rngSens" type="number" min="0.001" max="10" step="any" value="0.4" inputmode="decimal" /></label>
-        <div class="sensitivity-stat"><span>eDPI</span><output id="edpiOutput">320</output></div>
-        <div class="sensitivity-stat"><span>cm/360</span><output id="cmOutput">40.82</output></div>
-      </div>
-      <output id="valSens" hidden></output><output id="sensLabel" hidden></output>
-      <details class="dojo-expand">
-        <summary>Sensitivity converters</summary>
-        <div class="converter-grid">
-          <label for="targetCm">Target cm/360<input class="dojo-number" id="targetCm" type="number" min="0.1" max="10000" step="any" value="40.82142857" inputmode="decimal" /><button class="rbtn" id="btnApplyCm" type="button">Use target cm/360</button></label>
-          <label for="csSens">CS2 sens at the same DPI<input class="dojo-number" id="csSens" type="number" min="0.001" max="100" step="any" value="1.272727" inputmode="decimal" /><button class="rbtn" id="btnApplyCs" type="button">Use CS2 sens</button></label>
-        </div>
-      </details>
-      <p class="sens-check" id="sensitivityCheck"></p>
-      <p id="sensitivityStatus" role="status" aria-live="polite"></p>
-    </section>
+    <button class="rbtn" id="btnChooseMode" type="button" hidden>Change mode</button>
 
     <!-- ============ STEP 1: SURVEY ============ -->
-    <section id="stepSurvey">
+    <section id="stepSurvey" class="hidden">
 
 
       <details class="dojo-expand" id="planBuilder">
@@ -145,6 +128,11 @@
     <!-- ============ STEP 3: SETTINGS + RANGE ============ -->
     <section id="stepSettings" class="hidden">
       <h2 class="stage-title">THE <span class="accent">RANGE</span></h2>
+      <div class="card sensitivity-tools">
+        <label for="rngSens">Sensitivity</label>
+        <input class="dojo-number" id="rngSens" type="number" min="0.001" max="10" step="any" value="0.4" inputmode="decimal" />
+        <p id="sensitivityStatus" role="status" aria-live="polite"></p>
+      </div>
 
       <details class="dojo-expand" id="advancedSettings">
         <summary>Advanced settings</summary>
@@ -219,7 +207,6 @@
             <button class="rbtn" id="ovBtn2" type="button" hidden>start next</button>
             <button class="rbtn rbtn--mini ov-fs" id="ovFs" type="button" data-emj-skip>fullscreen aim</button>
           </div>
-          <button class="rbtn range-pause" id="pauseDrill" type="button" disabled>Pause</button>
           <button id="fireBtn" type="button" aria-label="Fire">fire</button>
         </div>
       </div>
@@ -250,10 +237,6 @@
 
         <div class="bench-table" id="benchTable"></div>
 
-        <div class="sens-box">
-          <b>sensitivity verdict</b>
-          <p id="sensVerdictTxt"></p>
-        </div>
         <div class="tips" id="resTips"></div>
       </div>
 
@@ -275,7 +258,7 @@
           <svg class="progress-chart" id="progressChart" viewBox="0 0 620 185" role="img" aria-label="Drill scores"></svg>
           <p class="progress-empty" id="progressEmpty">No runs yet.</p>
           <div class="progress-table-wrap" tabindex="0" aria-label="Scroll recent runs horizontally">
-            <table class="progress-table"><caption>Recent runs</caption><thead><tr><th scope="col">Date</th><th scope="col">Mode</th><th scope="col">Difficulty</th><th scope="col">DPI / sens</th><th scope="col">Score</th><th scope="col">Accuracy</th></tr></thead><tbody id="progressRows"></tbody></table>
+            <table class="progress-table"><caption>Recent runs</caption><thead><tr><th scope="col">Date</th><th scope="col">Mode</th><th scope="col">Difficulty</th><th scope="col">Sens</th><th scope="col">Score</th><th scope="col">Accuracy</th></tr></thead><tbody id="progressRows"></tbody></table>
           </div>
           <div class="progress-actions"><button class="rbtn" id="exportProgress" type="button">Export</button><button class="rbtn" id="importProgressButton" type="button">Import</button><input type="file" id="importProgress" accept=".json,application/json" hidden /><button class="rbtn" id="clearProgress" type="button">Clear progress</button></div>
           <p id="progressStatus" role="status" aria-live="polite"></p>

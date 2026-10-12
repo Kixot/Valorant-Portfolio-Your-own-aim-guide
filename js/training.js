@@ -26,8 +26,7 @@
       }
 
       /* ============ fullscreen: available at all times on the range ============ */
-      /* fullscreen the whole page, not the shell: the report card below the range
-         needs to scroll too, and a fullscreened shell clips everything under it */
+      /* Fullscreen keeps the active range and its cursor in the same subtree. */
       let escWantsFullscreen = false; /* see the fullscreenchange handler below */
       const fsTarget = document.querySelector('.range-shell') || document.documentElement;
       const fsButtons = [document.getElementById('ovFs')].filter(Boolean);
@@ -64,8 +63,7 @@
             enterFs();
             return;
           }
-          if (!on && playing && !paused) {
-            escStamp = performance.now();
+          if (!on && (playing || counting) && !paused) {
             pauseRun();
           }
         });
@@ -139,6 +137,7 @@
       const answers = { rank: null, goals: new Set(), diffChoice: 0, hours: null, sens: null };
       let diff = DIFFS[1];
       let session = null; // { list: [{mode,label,set,n}], idx, count, guided: bool }
+      let hasPlan = false;
 
       const rankBase = () => (RANKS.find((r) => r.id === answers.rank) || { base: 1 }).base;
       const applyDifficulty = () => {
@@ -197,7 +196,7 @@
         flicks: { name: 'Flick discipline', tag: 'flick range', desc: '2 flick runs daily. turn, click, dont think. thinking is for controllers.' },
         precision: { name: 'Micro precision', tag: 'precision range', desc: 'small targets, slow is smooth, smooth is fast. 2 runs minimum.' },
         tracking: { name: 'Tracking', tag: 'tracking range', desc: 'chase the bot and never let go. 3 runs. glue hands by friday.' },
-        sens: { name: 'Sens calibration', tag: 'settings', desc: 'run the same mode at 3 sens values, keep the one that feels boring (boring = consistent).' },
+        sens: { name: 'Sens calibration', tag: 'settings' },
         consistency: { name: 'Consistency', tag: 'any mode', desc: 'same mode, same time, every day. the report card will snitch on you.' }
       };
       /* guided workout steps per goal: mode + how many runs */
@@ -220,6 +219,9 @@
       };
 
       $('#btnPlan').addEventListener('click', () => {
+        hasPlan = true;
+        stats = { flick: null, precision: null, track: null };
+        $('#btnResults').disabled = true;
         applyDifficulty();
         const grid = $('#planGrid');
         grid.innerHTML = '';
@@ -227,7 +229,7 @@
           const p = PLAN_LIBRARY[g];
           const d = document.createElement('div');
           d.className = 'plan-item';
-          d.innerHTML = '<span class="tag">' + p.tag + '</span><h3>' + p.name + '</h3><p>' + p.desc + '</p>';
+          d.innerHTML = '<span class="tag">' + p.tag + '</span><h3>' + p.name + '</h3>' + (g === 'sens' ? '' : '<p>' + p.desc + '</p>');
           grid.appendChild(d);
         });
         const base = document.createElement('div');
@@ -270,7 +272,7 @@
         if (gl) gl.textContent = describeWorkout(list);
 
         $('#stepSurvey').classList.add('hidden');
-        $('#stepPlan').classList.remove('hidden');
+        enterRange(true);
         window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
       });
 
@@ -285,6 +287,9 @@
         }
         $('#stepPlan').classList.add('hidden');
         $('#stepSettings').classList.remove('hidden');
+        $('#dojoLauncher').hidden = true;
+        $('#btnChooseMode').hidden = false;
+        $('#btnBackPlan').textContent = 'Back to plan';
         window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
         setTimeout(() => { sizeRange(); resizeXhLayer(); }, 80);
       };
@@ -295,8 +300,10 @@
         $('#stepSurvey').classList.remove('hidden');
       });
       $('#btnBackPlan').addEventListener('click', () => {
+        if (playing || counting) return;
         $('#stepSettings').classList.add('hidden');
-        $('#stepPlan').classList.remove('hidden');
+        if (hasPlan) $('#stepPlan').classList.remove('hidden');
+        else $('#btnChooseMode').click();
       });
       $('#btnResults').addEventListener('click', () => {
         $('#stepSettings').classList.add('hidden');
@@ -329,9 +336,9 @@
       const syncModeButtons = () => {
         const live = (playing && !paused) || counting;
         const busy = playing || counting;
-        document.querySelectorAll('#rngSens, #inpDpi, #targetCm, #csSens, #btnApplyCm, #btnApplyCs, #optDiffLive button, #quickMode, #btnQuick').forEach(control => { control.disabled = busy; });
-        const pauseButton = $('#pauseDrill');
-        if (pauseButton) pauseButton.disabled = !playing || paused || counting;
+        document.querySelectorAll('#rngSens, #optDiffLive button, #btnQuick, #btnBackPlan, #btnChooseMode').forEach(control => { control.disabled = busy; });
+        $('#myProgress').hidden = busy;
+        document.querySelector('a[href="#myProgress"]').hidden = busy;
         document.querySelectorAll('.mode-btn').forEach((b) => {
           b.disabled = live;
         });
@@ -410,14 +417,6 @@
         if (settings.outline) paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w), T + 3, '#000000');
         paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w), T, settings.color);
         g.shadowBlur = 0;
-        updateEdpi();
-      };
-      const updateEdpi = () => {
-        $('#sensLabel').textContent = settings.sens.toFixed(3);
-        $('#valSens').textContent = settings.sens.toFixed(3);
-        $('#edpiOutput').textContent = Number(sensitivityMath.edpi(settings.dpi, settings.sens).toFixed(2)).toLocaleString();
-        $('#cmOutput').textContent = sensitivityMath.cm360(settings.dpi, settings.sens).toFixed(2);
-        $('#csSens').value = Number(sensitivityMath.convert(settings.sens, 'valorant', 'cs2').toFixed(6));
       };
       const saveSensitivity = () => {
         try { localStorage.setItem('kixot_sens', JSON.stringify({ version: 1, dpi: settings.dpi, sens: settings.sens })); }
@@ -431,8 +430,6 @@
         settings.sens = sens;
         $('#rngSens').value = Number(sens.toFixed(8));
         $('#sensitivityStatus').textContent = '';
-        $('#btnQuick').disabled = false;
-        updateEdpi();
         saveSensitivity();
         return true;
       };
@@ -476,33 +473,15 @@
       bindRange('#rngGap', '#valGap', 'gap', (v) => v);
 
       const readSensitivityInputs = () => {
-        const dpi = $('#inpDpi').valueAsNumber, sens = $('#rngSens').valueAsNumber;
-        if (!$('#inpDpi').checkValidity() || !$('#rngSens').checkValidity() || !Number.isFinite(dpi) || !Number.isFinite(sens)) {
-          $('#edpiOutput').textContent = '-';
-          $('#cmOutput').textContent = '-';
-          $('#btnQuick').disabled = true;
-          $('#sensitivityStatus').textContent = 'Enter DPI from 50 to 64000 and sens from 0.001 to 10.';
+        const sens = $('#rngSens').valueAsNumber;
+        if (!$('#rngSens').checkValidity() || !Number.isFinite(sens)) {
+          $('#sensitivityStatus').textContent = 'Enter sens from 0.001 to 10.';
           return;
         }
-        settings.dpi = dpi;
         applySensitivity(sens);
       };
       $('#rngSens').addEventListener('input', readSensitivityInputs);
-      $('#inpDpi').addEventListener('input', readSensitivityInputs);
-      $('#btnApplyCm').addEventListener('click', () => {
-        if (!$('#inpDpi').reportValidity() || !$('#targetCm').reportValidity()) return;
-        applySensitivity(sensitivityMath.sensFromCm360($('#inpDpi').valueAsNumber, $('#targetCm').valueAsNumber));
-      });
-      $('#btnApplyCs').addEventListener('click', () => {
-        if (!$('#csSens').reportValidity()) return;
-        applySensitivity(sensitivityMath.convert($('#csSens').valueAsNumber, 'cs2', 'valorant'));
-      });
-      $('#inpDpi').value = settings.dpi;
       $('#rngSens').value = settings.sens;
-      $('#sensitivityCheck').textContent = 'Check: 800 DPI / 0.4 sens = '
-        + sensitivityMath.edpi(800, 0.4) + ' eDPI / '
-        + sensitivityMath.cm360(800, 0.4).toFixed(2) + ' cm/360 ('
-        + sensitivityMath.cm360(800, 0.4).toFixed(1) + ' rounded).';
       drawXh();
 
       /* ================= live crosshair overlay ================= */
@@ -575,22 +554,18 @@
          unadjustedMovement:1 asks chrome to skip the os mouse accel (enhance pointer
          precision) for this pointer - raw counts like valorant. browsers that don't
          support it just take the normal path, everything still works. */
-      const safeLock = () => {
-        const lockOpts = { unadjustedMovement: true };
-        const fallback = () => {
-          try {
-            const retry = canvas3d.requestPointerLock();
-            if (retry && retry.catch) retry.catch(() => {});
-          } catch (e) {}
-        };
-        let p;
+      let lockRequest = false;
+      const safeLock = async () => {
+        if (locked || lockRequest || isTouch) return;
+        lockRequest = true;
         try {
-          p = canvas3d.requestPointerLock(lockOpts);
-        } catch (e) {
-          fallback();
-          return;
-        }
-        if (p && p.catch) p.catch(fallback);
+          await canvas3d.requestPointerLock({ unadjustedMovement: true });
+        } catch (error) {
+          // Only unsupported raw input needs a second request. Other failures wait for a click.
+          if (error?.name === 'NotSupportedError') {
+            try { await canvas3d.requestPointerLock(); } catch {}
+          }
+        } finally { lockRequest = false; }
       };
 
       const sizeRange = () => {
@@ -706,6 +681,7 @@
         scene.add(camera);
 
         sizeRange();
+        for (let i = 0; i < MODES[mode].field; i++) spawnTarget();
       };
 
       /* shared geometry + material caches: zero allocations while playing = no gc stutter */
@@ -895,7 +871,8 @@
       };
 
       const start = () => {
-        if (!$('#inpDpi').reportValidity() || !$('#rngSens').reportValidity()) return;
+        if (counting || (playing && !paused) || $('#stepSettings').classList.contains('hidden')) return;
+        if (!$('#rngSens').reportValidity()) return;
         cancelNext();
         if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); start(); }).catch(() => {}); return; }
         if (!renderer) init3d();
@@ -946,6 +923,7 @@
               overlay.classList.add('is-hidden');
               playing = true; paused = true;
               lockPending = true;
+              syncModeButtons();
               rangeNote.textContent = 'click anywhere to lock in';
               updateHud();
               safeLock();
@@ -970,11 +948,13 @@
          so the overlay always reads Resume and the run's timeLeft/score survive.
          resumeRun() is the only way back in, and it never resets the clock. */
       const pauseRun = (msg) => {
-        if (!playing) return;
+        if (!playing && !counting) return;
         /* already cleanly paused? nothing to do. but if we are parked waiting for the
            lock (the "click anywhere to lock in" state) esc still opens the menu */
         if (paused && !lockPending) return;
         paused = true;
+        playing = true;
+        holding = false;
         lockPending = false;
         if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
         counting = false;
@@ -1002,6 +982,7 @@
           lastT = performance.now();
           overlay.classList.add('is-hidden');
           rangeNote.textContent = mode === 'track' ? 'HOLD left mouse on the bot · esc to pause' : 'aiming · click to shoot · esc to pause';
+          syncModeButtons();
           return;
         }
         /* the browser refuses re-locks for a beat after esc. wait for the lock to
@@ -1054,7 +1035,6 @@
         holding = false;
         counting = false;
         lockPending = false;
-        glitchRelock = false;
         if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
         timeLeft = 0;
         updateHud();
@@ -1159,13 +1139,13 @@
         const mk = (h, b, s) => {
           const d = document.createElement('div');
           d.className = 'res-card';
-          d.innerHTML = '<h3>' + h + '</h3><b>' + b + '</b><span>' + s + '</span>';
+          d.innerHTML = '<h3>' + h + '</h3><b>' + b + '</b>' + (s ? '<span>' + s + '</span>' : '');
           grid.appendChild(d);
         };
         if (f) mk('Flick score', f.score.toLocaleString(), f.acc + '% acc · streak ' + f.streak);
         if (p) mk('Precision score', p.score.toLocaleString(), p.acc + '% acc · streak ' + p.streak);
         if (t) mk('Tracking score', t.score.toLocaleString(), t.acc + '% time on bot');
-        mk('Valorant sens', settings.sens.toFixed(2), 'exact valorant conversion');
+        mk('Sensitivity', [...new Set([f, p, t].filter(Boolean).map(run => run.sens))].join(', '));
         mk('Shots fired', ((f ? f.shots : 0) + (p ? p.shots : 0)).toLocaleString(), ((f ? f.hits : 0) + (p ? p.hits : 0)) + ' hit overall');
 
         const rows = [];
@@ -1197,15 +1177,6 @@
           bt.appendChild(d);
         });
 
-        let verdict;
-        if (settings.sens > 0.7) verdict = 'sens ' + settings.sens.toFixed(2) + ' is what pros call "a wrist injury". drop to 0.3 to 0.5 for a week. it will feel wrong, then it will feel illegal.';
-        else if (settings.sens > 0.45) verdict = 'sens ' + settings.sens.toFixed(2) + ' is spicy. usable, but micro adjustments get shaky. try 0.35 for cleaner precision.';
-        else if (settings.sens >= 0.25) verdict = 'sens ' + settings.sens.toFixed(2) + ' is the pro zone (most pros sit between 0.25 and 0.45). keep it and build muscle memory.';
-        else if (settings.sens >= 0.15) verdict = 'sens ' + settings.sens.toFixed(2) + ' is low and controlled. great for precision, just warm up those 180s.';
-        else verdict = 'sens ' + settings.sens.toFixed(2) + '?? your mousepad needs a mortgage. nudge up a little if turning feels like a workout.';
-        if (answers.sens === 'too fast' && settings.sens > 0.4) verdict += ' (you said it feels too fast. your hands knew first.)';
-        if (answers.sens === 'too slow' && settings.sens < 0.35) verdict += ' (you said it feels too slow. trust the shoulder, not the sens.)';
-        $('#sensVerdictTxt').textContent = verdict;
 
         const worst = [...rows].sort((a, b) => a.acc - b.acc)[0] || { h: 'any mode', tip: 'run one and the tips write themselves.' };
         const nextRank = BENCH[BENCH.indexOf(rank) - 1];
@@ -1280,7 +1251,7 @@
           b.classList.add('is-active');
           mode = b.dataset.mode;
           playing = false; paused = false; counting = false;
-          lockPending = false; glitchRelock = false;
+          lockPending = false;
           if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
           holding = false;
           if (!isTouch && locked) document.exitPointerLock();
@@ -1301,15 +1272,13 @@
           score = 0; hits = 0; shots = 0; streak = 0; bestStreak = 0; onT = 0; timeLeft = MODES[mode].dur;
           updateHud();
           updateSessionBanner();
-          rangeNote.textContent = 'ready · press start';
+          rangeNote.textContent = 'ready · press start · Esc to pause';
         });
       });
 
       /* ================= pointer lock + fire =================
-         real valorant sens. the game turns 0.07 degrees per mouse count per sens point
-         with raw input. the browser reports movement in css px and, at the default os
-         pointer speed, 1 count = 1 px. so deg/px = 0.07 x sens - dpi-free, and the
-         exact same feel as valorant at any dpi. helper: degPerCssPx in settings. */
+         Valorant turns 0.07 degrees per count per sens point. Request raw counts;
+         browsers without raw input use their normal pointer-lock deltas. */
 
       canvas3d.addEventListener('click', () => {
         if (playing) return; /* mid-run: clicks shoot, they never re-open the pause menu */
@@ -1321,13 +1290,12 @@
       document.addEventListener('pointerlockchange', () => {
         const wasLocked = locked;
         locked = document.pointerLockElement === canvas3d;
-        if (locked) { lockAt = performance.now(); skipFirstMove = true; glitchRelock = false; }
         rangeNote.textContent = locked ? (mode === 'track' ? 'aiming · HOLD left mouse on the bot · esc to pause'
                                                        : 'aiming · click to shoot · esc to pause')
           : isTouch ? 'drag to aim · tap to shoot'
           : 'click the range to lock in';
         /* a resume waits for this exact moment: lock landed -> NOW unpause */
-        if (lockPending) {
+        if (lockPending && locked) {
           lockPending = false;
           ovBtn.disabled = false;
           ovBtn.style.visibility = '';
@@ -1336,10 +1304,11 @@
             playing = true;
             lastT = performance.now();
             overlay.classList.add('is-hidden');
+            syncModeButtons();
           }
           return;
         }
-        if (wasLocked && !locked && playing && !paused) {
+        if (wasLocked && !locked && (playing || counting) && !paused) {
           /* ANY unlock during a live run is a pause now. the old build tried to
              guess "esc vs glitch" from a 600ms keydown window, but browsers
              routinely swallow the escape keydown that ends pointer lock - so a
@@ -1366,15 +1335,10 @@
         if (lockPending && !locked && !isTouch) safeLock();
       }, true);
 
-      let lockAt = 0; /* stamped on every lock */
-      let skipFirstMove = false; /* browsers emit one junk delta on the first event after a lock */
-      let escStamp = 0; /* last escape press, kept for diagnostics/telemetry only */
-      let glitchRelock = false; /* a relock is in flight for a glitch unlock (not a real esc) */
       document.addEventListener('mousemove', (e) => {
         if (!locked) return;
         /* movementX IS the raw mouse count (unadjustedMovement): deg = 0.07 x sens x count.
            exactly valorant's turn rate - nothing added, nothing compensated. */
-        if (skipFirstMove) { skipFirstMove = false; return; }
         const radPerCount = degPerCount(settings.sens) * (Math.PI / 180);
         /* sanity ceiling only, far beyond any real flick, purely to survive a
            browser glitch. the old code clamped every event for 60ms to ±120 counts,
@@ -1399,7 +1363,6 @@
            tears the lock down itself (pointerlockchange pauses us); when it isn't
            (fullscreen, or the lock was already gone) we pause here. */
         if (e.key === 'Escape') {
-          escStamp = performance.now();
           if (locked) { document.exitPointerLock(); return; }
           /* fullscreen: first esc pauses WITHOUT leaving fullscreen, a second esc
              (or the exit-fullscreen button) is what actually drops out of it */
@@ -1411,13 +1374,13 @@
             }
             return;
           }
-          if (playing) pauseRun();
+          if (playing || counting) pauseRun();
         }
         if ((e.key === 'r' || e.key === 'R') && locked && !playing) start();
         /* fullscreen from inside a run, keyboard-first: F flips it without breaking the lock */
         if ((e.key === 'f' || e.key === 'F') && !e.repeat) {
           if (document.fullscreenElement) document.exitFullscreen();
-          else fsTarget.requestFullscreen().catch(() => {});
+          else fsTarget.requestFullscreen?.().catch(() => {});
           e.preventDefault();
         }
       });
@@ -1541,56 +1504,74 @@
           cancelAnimationFrame(rafId);
           rafId = null;
           holding = false;
-          if (playing) pauseRun();
+          if (playing || counting) pauseRun();
         } else if (renderer && !rafId) {
           lastT = performance.now();
           rafId = requestAnimationFrame(loop);
         }
       });
 
-      let rangeLaunchToken = 0;
-      $('#btnOpenPlan').addEventListener('click', () => {
-        rangeLaunchToken++;
+      let launchMode = 'flick';
+      document.querySelectorAll('[data-launch-mode]').forEach(button => {
+        button.addEventListener('click', () => {
+          launchMode = button.dataset.launchMode;
+          document.querySelectorAll('[data-launch-mode]').forEach(item => {
+            const selected = item === button;
+            item.classList.toggle('is-active', selected);
+            item.setAttribute('aria-pressed', String(selected));
+          });
+        });
+      });
+      const resetExercise = () => {
         if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
         cancelNext();
-        playing = false; paused = false; counting = false; holding = false;
-        lockPending = false;
+        playing = false; paused = false; counting = false; holding = false; lockPending = false;
         if (locked) document.exitPointerLock();
         syncModeButtons();
+      };
+      $('#btnChooseMode').addEventListener('click', () => {
+        if (playing || counting) return;
+        resetExercise();
+        hasPlan = false;
+        ['stepSurvey', 'stepPlan', 'stepSettings', 'stepResults'].forEach(id => $('#' + id).classList.add('hidden'));
+        $('#dojoLauncher').hidden = false;
+        $('#btnChooseMode').hidden = true;
+        window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
+      });
+      $('#btnOpenPlan').addEventListener('click', () => {
+        resetExercise();
+        $('#dojoLauncher').hidden = true;
+        $('#btnChooseMode').hidden = false;
         $('#stepPlan').classList.add('hidden');
         $('#stepSettings').classList.add('hidden');
         $('#stepResults').classList.add('hidden');
         $('#stepSurvey').classList.remove('hidden');
+        const goal = { flick: 'flicks', precision: 'precision', track: 'tracking' }[launchMode];
+        answers.goals = new Set([goal]);
+        document.querySelectorAll('#qGoal button').forEach(button => button.classList.toggle('is-on', button.dataset.v === goal));
+        refreshSurvey();
         $('#planBuilder').open = true;
         $('#planBuilder').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
       });
       $('#btnQuick').addEventListener('click', () => {
-        if (!$('#inpDpi').reportValidity() || !$('#rngSens').reportValidity()) return;
-        const launchToken = ++rangeLaunchToken;
+        resetExercise();
+        hasPlan = false;
         session = { guided: false, idx: 0, count: 0, done: false, list: [] };
         stats = { flick: null, precision: null, track: null };
+        $('#btnResults').disabled = true;
         diff = DIFFS[1];
+        $('#dojoLauncher').hidden = true;
+        $('#btnChooseMode').hidden = false;
         $('#stepSurvey').classList.add('hidden');
         $('#stepPlan').classList.add('hidden');
         $('#stepResults').classList.add('hidden');
         $('#stepSettings').classList.remove('hidden');
-        document.querySelector('.mode-btn[data-mode="' + $('#quickMode').value + '"]').click();
+        document.querySelector('.mode-btn[data-mode="' + launchMode + '"]').click();
         document.querySelectorAll('#optDiffLive button').forEach(button => button.classList.toggle('is-on', button.dataset.v === String(diff.id)));
-        $('#btnQuick').disabled = true;
-        if (!isTouch) safeLock();
-        loadThree().then(() => {
-          if (launchToken !== rangeLaunchToken || $('#stepSettings').classList.contains('hidden')) return;
-          threeReady = true;
-          init3d();
-          start();
-          document.querySelector('.range-shell').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'center' });
-        }).catch(() => {
-          if (locked) document.exitPointerLock();
-          $('#btnQuick').disabled = false;
-          rangeNote.textContent = 'Range could not load. Click quick start to retry.';
-        });
+        $('#btnBackPlan').textContent = 'Back to modes';
+        window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
+        setTimeout(() => { sizeRange(); resizeXhLayer(); }, 80);
       });
-      $('#pauseDrill').addEventListener('click', event => { event.stopPropagation(); if (playing) pauseRun(); });
       document.querySelector('a[href="#myProgress"]').addEventListener('click', () => { $('#progressPanel').open = true; });
 
       /* ================= boot ================= */
@@ -1640,5 +1621,6 @@
         get cameraYaw() { return yaw; },
         get cameraPitch() { return pitch; }
       };
+      if (new URLSearchParams(location.search).get('quick') === '1') $('#btnQuick').click();
     })();
 

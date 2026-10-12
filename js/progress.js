@@ -66,7 +66,7 @@
     selected.slice(-10).reverse().forEach(run => {
       const row = document.createElement('tr');
       const date = new Date(run.date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-      [date, modes[run.mode], run.difficulty, `${run.dpi} / ${run.sens}`, run.score.toLocaleString(), `${run.accuracy}%`].forEach(value => {
+      [date, modes[run.mode], run.difficulty, String(run.sens), run.score.toLocaleString(), `${run.accuracy}%`].forEach(value => {
         const cell = document.createElement('td');
         cell.textContent = value;
         row.appendChild(cell);

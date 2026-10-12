@@ -1,10 +1,11 @@
-/* Shared site type matches the existing hero Dojo button. */
+/* Coding-style type, with the hero retaining its original face. */
 :root {
-  --font-body: 'Outfit', 'Segoe UI', sans-serif;
-  --font-display: 'Outfit', 'Segoe UI', sans-serif;
-  --font-prev: 'Outfit', 'Segoe UI', sans-serif;
+  --font-body: 'Consolas', 'Courier New', ui-monospace, monospace;
+  --font-display: 'Consolas', 'Courier New', ui-monospace, monospace;
+  --font-prev: 'Consolas', 'Courier New', ui-monospace, monospace;
 }
 body, button, input, select, textarea { font-family: var(--font-body); }
+.hero { --font-body: 'Outfit', 'Segoe UI', sans-serif; --font-display: 'Outfit', 'Segoe UI', sans-serif; --font-prev: 'Outfit', 'Segoe UI', sans-serif; }
 [hidden] { display: none !important; }
 h2, h3, h4, .range-cta .big, .footer__logo,
 .ff__label, .ff__item, .ff .ff__label, .ff .ff__item, #ovBig { font-family: var(--font-body); }
@@ -19,11 +20,14 @@ main, .section, .spot, .wrap, .gun-card, .agent-card, .agent-card__body { min-wi
 .section__title, .agent-card__body h4 { overflow-wrap: anywhere; }
 .rank-row { flex-wrap: wrap; }
 .range-cta .rbtn { max-width: 100%; }
+.preview-actions { display: flex; justify-content: center; gap: 12px; }
+.preview-actions .rbtn { padding: 15px 12px; letter-spacing: .02em; }
 .range-cta { transition: border-color .25s; }
 .range-cta:hover, .tool-placeholder:hover { border-color: var(--line-strong); }
 .range-cta::before, .range-cta::after, .tool-placeholder::before, .tool-placeholder::after, .rb-card::before { content: none; display: none !important; }
 .spot::before, .agent-card::after { display: none !important; }
 .range-cta .big { font-weight: 600; }
+.range-cta .desc { min-height: 3.3em; }
 .section { scroll-margin-top: 28px; }
 :focus-visible { outline: 1px solid #fff; outline-offset: 5px; }
 .rbtn:focus-visible, .copy-btn:focus-visible { background: #fff; color: #000; }
@@ -73,7 +77,8 @@ html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
 .footer { margin-top: 40px; }
 body.is-tab-hidden *, body.is-tab-hidden *::before, body.is-tab-hidden *::after { animation-play-state: paused !important; }
 @media (max-width: 560px) {
-  .range-cta .desc { min-height: 3.3em; }
+  .range-cta .big { font-size: 22px; }
+  .range-cta .desc { min-height: 4.95em; }
   .agent-grid, .gun-grid { grid-template-columns: minmax(0, 1fr); }
   .tool-placeholder__actions .rbtn { width: 100%; }
   .set-row { grid-template-columns: 1fr; }

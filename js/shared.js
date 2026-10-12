@@ -54,6 +54,7 @@
   };
   const selectTarget = target => {
     let next = target?.closest?.(interactive) || null;
+    if (next?.matches('input[type="range"]') || (next?.tagName === 'LABEL' && next.control?.type === 'range')) next = null;
     if (next?.matches(':disabled')) next = null;
     if (next !== activeTarget && next) {
       targetStarted = performance.now();
