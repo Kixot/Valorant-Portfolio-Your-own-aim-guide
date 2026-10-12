@@ -5,6 +5,7 @@
   --font-prev: 'Outfit', 'Segoe UI', sans-serif;
 }
 body, button, input, select, textarea { font-family: var(--font-body); }
+[hidden] { display: none !important; }
 h2, h3, h4, .range-cta .big, .footer__logo,
 .ff__label, .ff__item, .ff .ff__label, .ff .ff__item, #ovBig { font-family: var(--font-body); }
 h2, h3, h4 { font-weight: 600; }
@@ -42,7 +43,7 @@ html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
   opacity: 0;
 }
 #cur.is-hover::after { opacity: 1; }
-.cur__corner { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border: 0 solid #fff; opacity: 0; }
+.cur__corner { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border: 0 solid #fff; opacity: 0; transition: opacity .12s; }
 #cur.is-hover .cur__corner { opacity: 1; }
 .cur__corner--tl { border-top-width: 2px; border-left-width: 2px; }
 .cur__corner--tr { border-top-width: 2px; border-right-width: 2px; }
@@ -72,6 +73,7 @@ html.cur-on, html.cur-on body, html.cur-on * { cursor: none !important; }
 .footer { margin-top: 40px; }
 body.is-tab-hidden *, body.is-tab-hidden *::before, body.is-tab-hidden *::after { animation-play-state: paused !important; }
 @media (max-width: 560px) {
+  .range-cta .desc { min-height: 3.3em; }
   .agent-grid, .gun-grid { grid-template-columns: minmax(0, 1fr); }
   .tool-placeholder__actions .rbtn { width: 100%; }
   .set-row { grid-template-columns: 1fr; }

@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Dojo | Kixot</title>
-  <meta name="description" content="Kixot&#x27;s the dojo page. Launch the existing Valorant aim range." />
+  <meta name="description" content="Kixot&#x27;s first person aim range with Valorant sensitivity, guided workouts and report cards." />
   <link rel="canonical" href="https://www.kixotgg.com/dojo.html" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="The Dojo | Kixot" />
-  <meta property="og:description" content="Kixot&#x27;s the dojo page. Launch the existing Valorant aim range." />
+  <meta property="og:description" content="Kixot&#x27;s first person aim range with Valorant sensitivity, guided workouts and report cards." />
   <meta property="og:url" content="https://www.kixotgg.com/dojo.html" />
   <meta property="og:image" content="https://www.kixotgg.com/assets/img/og.png" />
   <meta property="og:image:width" content="1200" />
@@ -16,16 +16,26 @@
   <meta property="og:image:alt" content="Kixot wordmark on a black background" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="The Dojo | Kixot" />
-  <meta name="twitter:description" content="Kixot&#x27;s the dojo page. Launch the existing Valorant aim range." />
+  <meta name="twitter:description" content="Kixot&#x27;s first person aim range with Valorant sensitivity, guided workouts and report cards." />
   <meta name="twitter:image" content="https://www.kixotgg.com/assets/img/og.png" />
   <meta name="theme-color" content="#000000" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23000000'/%3E%3Ccircle cx='60' cy='60' r='44' fill='none' stroke='%23ffffff' stroke-width='6'/%3E%3Ccircle cx='60' cy='60' r='9' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://media.valorant-api.com" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <!-- crete round carries every title; body copy is courier new (a system face, no download).
+       outfit is only here for the handful of words that revert to the pre-redesign face. -->
+  <link rel="preload" href="assets/fonts/crete-round-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/site.css" />
+  <link rel="stylesheet" href="css/training.css" />
   <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/dojo.css" />
 </head>
-<body class="tool-page">
+<body class="training-page">
   <div id="cur" aria-hidden="true"></div>
+
   <header>
   <nav class="ff" aria-label="Site">
     <div class="ff__folder">
@@ -35,21 +45,246 @@
         <a class="ff__item" href="index.html#top" data-section="top">home</a>
         <a class="ff__item" href="index.html#about" data-section="about">about</a>
         <a class="ff__item" href="dojo.html" aria-current="page">dojo</a>
-        <a class="ff__item" href="vod.html" data-section="vod">vod review</a>
+        <a class="ff__item" href="vod.html">vod review</a>
         <a class="ff__item ff__item--cta" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">subs</a>
       </div>
     </div>
   </nav>
   </header>
-  <main id="top">
-    <section class="section" aria-label="The Dojo">
-      <div class="section__head reveal"><h2 class="section__title">The Dojo</h2></div>
-      <div class="spot tool-placeholder reveal" aria-label="The Dojo placeholder">
-        <p class="tool-placeholder__status">Dojo updates coming soon.</p>
-        <div class="tool-placeholder__actions"><a class="rbtn rbtn--solid" href="pages/training.html">Launch existing range</a></div>
+
+  <main class="wrap" id="top">
+    <div class="dojo-toolbar">
+      <h2 class="stage-title">THE <span class="accent">DOJO</span></h2>
+      <a class="rbtn" href="#myProgress">My progress</a>
+    </div>
+    <div class="card quick-start">
+      <div class="quick-start__controls">
+        <label for="quickMode">Mode</label>
+        <select class="dojo-select" id="quickMode"><option value="flick">Flick</option><option value="precision">Precision</option><option value="track">Tracking</option></select>
+        <button class="rbtn rbtn--solid" id="btnQuick" type="button">Quick start - 30s</button>
+      </div>
+      <button class="rbtn" id="btnOpenPlan" type="button">Build my plan</button>
+    </div>
+    <section class="card sensitivity-tools" aria-label="Sensitivity">
+      <div class="sensitivity-grid">
+        <label for="inpDpi">DPI<input class="dojo-number" id="inpDpi" type="number" min="50" max="64000" step="1" value="800" inputmode="numeric" /></label>
+        <label for="rngSens">In-game sens<input class="dojo-number" id="rngSens" type="number" min="0.001" max="10" step="any" value="0.4" inputmode="decimal" /></label>
+        <div class="sensitivity-stat"><span>eDPI</span><output id="edpiOutput">320</output></div>
+        <div class="sensitivity-stat"><span>cm/360</span><output id="cmOutput">40.82</output></div>
+      </div>
+      <output id="valSens" hidden></output><output id="sensLabel" hidden></output>
+      <details class="dojo-expand">
+        <summary>Sensitivity converters</summary>
+        <div class="converter-grid">
+          <label for="targetCm">Target cm/360<input class="dojo-number" id="targetCm" type="number" min="0.1" max="10000" step="any" value="40.82142857" inputmode="decimal" /><button class="rbtn" id="btnApplyCm" type="button">Use target cm/360</button></label>
+          <label for="csSens">CS2 sens at the same DPI<input class="dojo-number" id="csSens" type="number" min="0.001" max="100" step="any" value="1.272727" inputmode="decimal" /><button class="rbtn" id="btnApplyCs" type="button">Use CS2 sens</button></label>
+        </div>
+      </details>
+      <p class="sens-check" id="sensitivityCheck"></p>
+      <p id="sensitivityStatus" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- ============ STEP 1: SURVEY ============ -->
+    <section id="stepSurvey">
+
+
+      <details class="dojo-expand" id="planBuilder">
+        <summary>Plan survey</summary>
+      <div class="card">
+        <div class="q">
+          <p>current rank?</p>
+          <div class="opts" id="qRank"></div>
+        </div>
+        <div class="q">
+          <p>what do you want to improve? (pick any)</p>
+          <div class="opts" id="qGoal"></div>
+        </div>
+        <div class="q">
+          <p>how hard should the range be?</p>
+          <div class="opts" data-single id="qDiff"></div>
+        </div>
+        <div class="q">
+          <p>how many hours do you play per week?</p>
+          <div class="opts" data-single id="qHours"></div>
+        </div>
+        <div class="q">
+          <p>your sens feels...</p>
+          <div class="opts" data-single id="qSens"></div>
+        </div>
+        <div style="margin-top:28px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+          <button class="rbtn rbtn--solid" id="btnPlan" disabled type="button">Build my plan</button>
+          <span class="muted" id="surveyHint" style="align-self:center;font-weight:600;">pick a rank to start</span>
+        </div>
+      </div>
+      </details>
+    </section>
+
+    <!-- ============ STEP 2: PLAN + SESSION CHOICE ============ -->
+    <section id="stepPlan" class="hidden">
+      <h2 class="stage-title">YOUR <span class="accent">PLAN</span></h2>
+      <div class="card">
+        <div class="plan-grid" id="planGrid"></div>
+        <p class="muted" style="margin-top:20px;font-weight:500;" id="planRoast"></p>
+
+        <div class="rb-card">
+          <h3>how do you wanna train?</h3>
+          <p class="rb-line">guide : <span id="guideList">building your exercises</span></p>
+          <p class="rb-line">individual : <span>do whatever you want :)</span></p>
+          <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="rbtn rbtn--solid" id="btnGuided" type="button">guide</button>
+            <button class="rbtn" id="btnFree" type="button">individual</button>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <button class="rbtn" id="btnRedo" type="button">retake survey</button>
+        </div>
       </div>
     </section>
+
+    <!-- ============ STEP 3: SETTINGS + RANGE ============ -->
+    <section id="stepSettings" class="hidden">
+      <h2 class="stage-title">THE <span class="accent">RANGE</span></h2>
+
+      <details class="dojo-expand" id="advancedSettings">
+        <summary>Advanced settings</summary>
+      <div class="card">
+        <div class="set-row">
+          <label>difficulty</label>
+          <div class="opts" data-single id="optDiffLive"></div>
+        </div>
+        <div class="set-row">
+          <label>crosshair color</label>
+          <div class="opts" data-single id="optColor"></div>
+        </div>
+        <div class="set-row">
+          <label>style</label>
+          <div class="opts" data-single id="optStyle"></div>
+        </div>
+        <div class="set-row">
+          <label>outline</label>
+          <div class="opts" data-single id="optOutline"></div>
+        </div>
+        <div class="set-row">
+          <label for="rngLen">length</label>
+          <input type="range" id="rngLen" min="1" max="10" value="4" />
+          <span class="set-val" id="valLen">4</span>
+        </div>
+        <div class="set-row">
+          <label for="rngThick">thickness</label>
+          <input type="range" id="rngThick" min="1" max="4" value="1" />
+          <span class="set-val" id="valThick">1</span>
+        </div>
+        <div class="set-row">
+          <label for="rngGap">gap</label>
+          <input type="range" id="rngGap" min="0" max="10" value="2" />
+          <span class="set-val" id="valGap">2</span>
+        </div>
+
+        <div class="set-row" style="align-items:flex-start;">
+          <label>preview</label>
+          <div class="xh-preview"><canvas id="xhCanvas" width="152" height="152"></canvas></div>
+
+        </div>
+      </div>
+
+      </details>
+
+      <div class="modes-row">
+        <button class="mode-btn is-active" data-mode="flick" type="button">Flick</button>
+        <button class="mode-btn" data-mode="precision" type="button">Precision</button>
+        <button class="mode-btn" data-mode="track" type="button">Tracking</button>
+      </div>
+
+      <div class="range-shell">
+        <div class="range-wrap">
+          <canvas id="range3d"></canvas>
+          <canvas id="xhLayer"></canvas>
+          <div class="range-hud" data-emj-skip>
+            <div class="hud-chip hud-chip--score">score<b id="hudScore">0</b></div>
+            <div class="hud-chip hud-chip--time">time<b id="hudTime">30.0</b></div>
+            <div class="hud-chip">acc<b id="hudAcc">-</b></div>
+            <div class="hud-chip">streak<b id="hudStreak">0</b></div>
+            <div class="session-banner" id="sessionBanner"></div>
+          </div>
+          <div class="range-note" id="rangeNote">click the range to lock in</div>
+          <div class="range-overlay" id="overlay">
+            <h3 id="ovTitle"><span class="accent">FLICK</span> RANGE</h3>
+            <p id="ovDesc"></p>
+            <div id="ovBig"></div>
+            <img id="ovRank" alt="rank" width="256" height="256" />
+            <p id="ovMsg"></p>
+            <p id="ovNext"></p>
+            <button class="rbtn rbtn--solid" id="ovBtn" type="button">Start</button>
+            <button class="rbtn" id="ovBtn2" type="button" hidden>start next</button>
+            <button class="rbtn rbtn--mini ov-fs" id="ovFs" type="button" data-emj-skip>fullscreen aim</button>
+          </div>
+          <button class="rbtn range-pause" id="pauseDrill" type="button" disabled>Pause</button>
+          <button id="fireBtn" type="button" aria-label="Fire">fire</button>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+        <button class="rbtn" id="btnBackPlan" type="button">← back to plan</button>
+        <span class="lock-wrap" id="lockWrap">
+          <button class="rbtn" id="btnResults" type="button" disabled>see my report card</button>
+          <span class="lock-pop" id="lockPop" role="status"></span>
+        </span>
+      </div>
+    </section>
+
+    <!-- ============ STEP 4: ANALYTICS ============ -->
+    <section id="stepResults" class="hidden">
+      <h2 class="stage-title">YOUR <span class="accent">REPORT CARD</span></h2>
+      <div class="card" id="resCard">
+        <div class="res-head">
+          <img id="resRankIcon" alt="rank icon" width="256" height="256" />
+          <div>
+            <h2 id="resRankName">RANK</h2>
+            <p class="pun" id="resPun"></p>
+            <p class="tot" id="resTotal"></p>
+          </div>
+        </div>
+        <div class="res-grid" id="resGrid"></div>
+        <div class="overview" id="overview"></div>
+
+        <div class="bench-table" id="benchTable"></div>
+
+        <div class="sens-box">
+          <b>sensitivity verdict</b>
+          <p id="sensVerdictTxt"></p>
+        </div>
+        <div class="tips" id="resTips"></div>
+      </div>
+
+      <div style="margin-top:22px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+        <button class="rbtn rbtn--solid" id="btnAgain" type="button">run it back</button>
+        <button class="rbtn" id="btnShare" type="button">copy my results</button>
+        <a class="rbtn" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">heal with youtube</a>
+      </div>
+    </section>
+
+    <section id="myProgress" aria-label="My progress">
+      <details class="dojo-expand" id="progressPanel">
+        <summary>My progress</summary>
+        <div class="card">
+          <div class="progress-head">
+            <label for="progressMode">Mode <select class="dojo-select" id="progressMode"><option value="flick">Flick</option><option value="precision">Precision</option><option value="track">Tracking</option></select></label>
+            <div class="progress-metrics"><div><span>Personal best</span><strong id="progressBest">-</strong></div><div><span>Runs</span><strong id="progressCount">0</strong></div></div>
+          </div>
+          <svg class="progress-chart" id="progressChart" viewBox="0 0 620 185" role="img" aria-label="Drill scores"></svg>
+          <p class="progress-empty" id="progressEmpty">No runs yet.</p>
+          <div class="progress-table-wrap" tabindex="0" aria-label="Scroll recent runs horizontally">
+            <table class="progress-table"><caption>Recent runs</caption><thead><tr><th scope="col">Date</th><th scope="col">Mode</th><th scope="col">Difficulty</th><th scope="col">DPI / sens</th><th scope="col">Score</th><th scope="col">Accuracy</th></tr></thead><tbody id="progressRows"></tbody></table>
+          </div>
+          <div class="progress-actions"><button class="rbtn" id="exportProgress" type="button">Export</button><button class="rbtn" id="importProgressButton" type="button">Import</button><input type="file" id="importProgress" accept=".json,application/json" hidden /><button class="rbtn" id="clearProgress" type="button">Clear progress</button></div>
+          <p id="progressStatus" role="status" aria-live="polite"></p>
+        </div>
+      </details>
+    </section>
+
   </main>
+
     <footer class="footer">
       <img class="footer__emblem" src="assets/favicon.svg" alt="" width="56" height="56" />
       <p class="footer__logo">KIX<span class="accent">OT</span></p>
@@ -63,5 +298,8 @@
       </div>
     </footer>
   <script src="js/shared.js" defer></script>
+  <script src="js/sensitivity.js" defer></script>
+  <script src="js/progress.js" defer></script>
+  <script src="js/training.js" defer></script>
 </body>
 </html>

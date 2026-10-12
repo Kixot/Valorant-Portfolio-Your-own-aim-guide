@@ -38,7 +38,12 @@
       if (fsTarget.requestFullscreen && fsButtons.length) {
         const enterFs = () => {
           const p = fsTarget.requestFullscreen({ navigationUI: 'hide' });
-          if (p && p.catch) p.catch(() => { try { fsTarget.requestFullscreen(); } catch (e) {} });
+          if (p && p.catch) p.catch(() => {
+            try {
+              const retry = fsTarget.requestFullscreen();
+              if (retry && retry.catch) retry.catch(() => {});
+            } catch (e) {}
+          });
         };
         const exitFs = () => { if (document.fullscreenElement) document.exitFullscreen(); };
         const toggleFs = () => {
@@ -322,7 +327,11 @@
          only a LIVE run locks the buttons. while paused they stay live so the
          player can bail out to another exercise (that run's progress is lost). */
       const syncModeButtons = () => {
-        const live = playing && !paused;
+        const live = (playing && !paused) || counting;
+        const busy = playing || counting;
+        document.querySelectorAll('#rngSens, #inpDpi, #targetCm, #csSens, #btnApplyCm, #btnApplyCs, #optDiffLive button, #quickMode, #btnQuick').forEach(control => { control.disabled = busy; });
+        const pauseButton = $('#pauseDrill');
+        if (pauseButton) pauseButton.disabled = !playing || paused || counting;
         document.querySelectorAll('.mode-btn').forEach((b) => {
           b.disabled = live;
         });
@@ -352,20 +361,21 @@
       };
 
       /* ================= settings ================= */
-      const settings = { color: '#ffffff', style: 'cross', outline: false, len: 4, thick: 1, gap: 2, sens: 0.4 };
+      const settings = { dpi: 800, color: '#ffffff', style: 'cross', outline: false, len: 4, thick: 1, gap: 2, sens: 0.4 };
       /* ---- valorant sens math, exact ----
          valorant turns 0.07 degrees per mouse COUNT per sens point, on raw input.
          with unadjustedMovement (requested above) the browser hands over raw counts
          in movementX - so one count here is one count in valorant. no dpi factor,
          no display scaling, no feel tweaks: same number in, same turn out. */
-      const VA_YAW = 0.07;
-      const degPerCount = (s) => VA_YAW * s;
+      const sensitivityMath = window.KixotSensitivity;
+      const degPerCount = (sens) => sensitivityMath.degrees(1, sens);
       try {
         const saved = JSON.parse(localStorage.getItem('kixot_sens') || 'null');
-        if (saved && saved.sens) {
-          settings.sens = saved.sens;
+        if (saved && (saved.version === undefined || saved.version === 1)) {
+          if (Number.isFinite(saved.sens) && saved.sens >= 0.001 && saved.sens <= 10) settings.sens = saved.sens;
+          if (Number.isFinite(saved.dpi) && saved.dpi >= 50 && saved.dpi <= 64000) settings.dpi = saved.dpi;
         }
-      } catch (e) { /* fresh start */ }
+      } catch { /* Keep defaults when settings storage is unavailable or damaged. */ }
 
       /* one pass paints the whole reticle in a single colour. "outline" = a fat dark
          pass laid down first, so the crosshair stays readable even on a bright target. */
@@ -403,9 +413,28 @@
         updateEdpi();
       };
       const updateEdpi = () => {
-        $('#sensLabel').textContent = settings.sens.toFixed(2);
-        const note = $('#sensNote');
-        if (note) note.textContent = '';
+        $('#sensLabel').textContent = settings.sens.toFixed(3);
+        $('#valSens').textContent = settings.sens.toFixed(3);
+        $('#edpiOutput').textContent = Number(sensitivityMath.edpi(settings.dpi, settings.sens).toFixed(2)).toLocaleString();
+        $('#cmOutput').textContent = sensitivityMath.cm360(settings.dpi, settings.sens).toFixed(2);
+        $('#csSens').value = Number(sensitivityMath.convert(settings.sens, 'valorant', 'cs2').toFixed(6));
+      };
+      const saveSensitivity = () => {
+        try { localStorage.setItem('kixot_sens', JSON.stringify({ version: 1, dpi: settings.dpi, sens: settings.sens })); }
+        catch { $('#sensitivityStatus').textContent = 'Settings stay in this visit. Browser storage is unavailable.'; }
+      };
+      const applySensitivity = sens => {
+        if (!Number.isFinite(sens) || sens < 0.001 || sens > 10) {
+          $('#sensitivityStatus').textContent = 'Sensitivity must be between 0.001 and 10.';
+          return false;
+        }
+        settings.sens = sens;
+        $('#rngSens').value = Number(sens.toFixed(8));
+        $('#sensitivityStatus').textContent = '';
+        $('#btnQuick').disabled = false;
+        updateEdpi();
+        saveSensitivity();
+        return true;
       };
 
       const buildChips = (el, pairs, onPick) => {
@@ -446,19 +475,35 @@
       bindRange('#rngThick', '#valThick', 'thick', (v) => v);
       bindRange('#rngGap', '#valGap', 'gap', (v) => v);
 
-      $('#rngSens').addEventListener('input', () => {
-        settings.sens = parseInt($('#rngSens').value, 10) / 100;
-        $('#valSens').textContent = settings.sens.toFixed(2);
-        updateEdpi();
-        try { localStorage.setItem('kixot_sens', JSON.stringify({ sens: settings.sens })); } catch (e) {}
+      const readSensitivityInputs = () => {
+        const dpi = $('#inpDpi').valueAsNumber, sens = $('#rngSens').valueAsNumber;
+        if (!$('#inpDpi').checkValidity() || !$('#rngSens').checkValidity() || !Number.isFinite(dpi) || !Number.isFinite(sens)) {
+          $('#edpiOutput').textContent = '-';
+          $('#cmOutput').textContent = '-';
+          $('#btnQuick').disabled = true;
+          $('#sensitivityStatus').textContent = 'Enter DPI from 50 to 64000 and sens from 0.001 to 10.';
+          return;
+        }
+        settings.dpi = dpi;
+        applySensitivity(sens);
+      };
+      $('#rngSens').addEventListener('input', readSensitivityInputs);
+      $('#inpDpi').addEventListener('input', readSensitivityInputs);
+      $('#btnApplyCm').addEventListener('click', () => {
+        if (!$('#inpDpi').reportValidity() || !$('#targetCm').reportValidity()) return;
+        applySensitivity(sensitivityMath.sensFromCm360($('#inpDpi').valueAsNumber, $('#targetCm').valueAsNumber));
       });
+      $('#btnApplyCs').addEventListener('click', () => {
+        if (!$('#csSens').reportValidity()) return;
+        applySensitivity(sensitivityMath.convert($('#csSens').valueAsNumber, 'cs2', 'valorant'));
+      });
+      $('#inpDpi').value = settings.dpi;
+      $('#rngSens').value = settings.sens;
+      $('#sensitivityCheck').textContent = 'Check: 800 DPI / 0.4 sens = '
+        + sensitivityMath.edpi(800, 0.4) + ' eDPI / '
+        + sensitivityMath.cm360(800, 0.4).toFixed(2) + ' cm/360 ('
+        + sensitivityMath.cm360(800, 0.4).toFixed(1) + ' rounded).';
       drawXh();
-      /* restore saved dpi + sens into the ui */
-      (function restoreSens() {
-        $('#rngSens').value = Math.round(settings.sens * 100);
-        $('#valSens').textContent = settings.sens.toFixed(2);
-        updateEdpi();
-      })();
 
       /* ================= live crosshair overlay ================= */
       const xhLayer = $('#xhLayer');
@@ -515,6 +560,7 @@
       let score = 0, hits = 0, shots = 0, streak = 0, bestStreak = 0, onT = 0, timeLeft = 30;
       let targets = [];
       let stats = { flick: null, precision: null, track: null };
+      let runConfiguration = null;
       let lastT = 0, rafId = null, countdownTimer = null, lockPending = false;
       let holding = false;
 
@@ -531,17 +577,27 @@
          support it just take the normal path, everything still works. */
       const safeLock = () => {
         const lockOpts = { unadjustedMovement: true };
+        const fallback = () => {
+          try {
+            const retry = canvas3d.requestPointerLock();
+            if (retry && retry.catch) retry.catch(() => {});
+          } catch (e) {}
+        };
         let p;
         try {
           p = canvas3d.requestPointerLock(lockOpts);
         } catch (e) {
-          try { p = canvas3d.requestPointerLock(); } catch (e2) { return; }
+          fallback();
+          return;
         }
-        if (p && p.catch) p.catch(() => { try { canvas3d.requestPointerLock(); } catch (e) {} });
+        if (p && p.catch) p.catch(fallback);
       };
 
       const sizeRange = () => {
         if (!renderer) return;
+        const cap = matchMedia('(max-width: 768px), (pointer: coarse)').matches ? 1.25 : 1.75;
+        const ratio = Math.min(window.devicePixelRatio || 1, cap);
+        if (renderer.getPixelRatio() !== ratio) renderer.setPixelRatio(ratio);
         const w = canvas3d.clientWidth, h = canvas3d.clientHeight;
         if (!w || !h) return;
         renderer.setSize(w, h, false);
@@ -693,6 +749,7 @@
       /* sparks share one geometry + one material per burst (they fade in sync) */
       let sparkGeo = null;
       const burst = (pos) => {
+        if (reducedMotion) return;
         if (!sparkGeo) sparkGeo = new THREE.SphereGeometry(0.05, 6, 6);
         const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true });
         for (let i = 0; i < 10; i++) {
@@ -776,8 +833,8 @@
 
         if (gun) {
           const t = ts / 1000;
-          gun.position.x = 0.34 + Math.sin(t * 1.4) * 0.006;
-          gun.position.y = -0.34 + Math.cos(t * 1.1) * 0.008;
+          gun.position.x = 0.34 + (reducedMotion ? 0 : Math.sin(t * 1.4) * 0.006);
+          gun.position.y = -0.34 + (reducedMotion ? 0 : Math.cos(t * 1.1) * 0.008);
           gun.position.z += (-0.62 - gun.position.z) * Math.min(1, dt * 9);
           gun.rotation.x += (0 - gun.rotation.x) * Math.min(1, dt * 8);
         }
@@ -838,6 +895,7 @@
       };
 
       const start = () => {
+        if (!$('#inpDpi').reportValidity() || !$('#rngSens').reportValidity()) return;
         cancelNext();
         if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); start(); }).catch(() => {}); return; }
         if (!renderer) init3d();
@@ -845,6 +903,7 @@
         if (beep.ctx && beep.ctx.state === 'suspended') beep.ctx.resume();
         paused = false;
         score = 0; hits = 0; shots = 0; streak = 0; bestStreak = 0; onT = 0; holding = false;
+        runConfiguration = { sens: settings.sens, dpi: settings.dpi, difficulty: diff.short };
         timeLeft = MODES[mode].dur;
         clearTargets();
         for (let i = 0; i < MODES[mode].field; i++) spawnTarget();
@@ -860,6 +919,7 @@
         /* the 30s exercise clock does not exist yet: counting holds the loop off
            the clock until the 3-2-1 has fully finished */
         counting = true;
+        syncModeButtons();
         ovBig.textContent = count;
         ovBig.classList.add('is-showing');
         ovMsg.textContent = '';
@@ -896,6 +956,7 @@
             paused = false;
             /* clock starts HERE - after the 3-2-1, not before it */
             counting = false;
+            syncModeButtons();
             lastT = performance.now();
             updateHud();
             rangeNote.textContent = isTouch ? 'drag to aim · tap to shoot'
@@ -1010,10 +1071,11 @@
         stats[mode] = {
           mode, score: Math.round(score), acc: Math.round(acc * 100),
           streak: mode === 'track' ? Math.round((onT / m.dur) * 100) : bestStreak,
-          shots, hits, sens: settings.sens, diff: diff.short
+          shots, hits, sens: runConfiguration ? runConfiguration.sens : settings.sens, dpi: runConfiguration ? runConfiguration.dpi : settings.dpi, diff: runConfiguration ? runConfiguration.difficulty : diff.short
         };
 
         const s = stats[mode];
+        window.KixotProgress.addRun(s);
         const rank = runBenchFor(mode).find((r) => s.score >= r.min) || runBenchFor(mode)[runBenchFor(mode).length - 1];
         ovBig.textContent = s.score;
         ovBig.classList.add('is-showing');
@@ -1328,7 +1390,7 @@
 
       document.addEventListener('mousedown', (e) => {
         if (!locked) return;
-        if (e.button === 0) { holding = true; shoot(); if (gun) gun.position.z = -0.5; }
+        if (e.button === 0) { holding = true; shoot(); if (gun && !reducedMotion) gun.position.z = -0.5; }
       });
       document.addEventListener('mouseup', () => { holding = false; });
 
@@ -1486,6 +1548,51 @@
         }
       });
 
+      let rangeLaunchToken = 0;
+      $('#btnOpenPlan').addEventListener('click', () => {
+        rangeLaunchToken++;
+        if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+        cancelNext();
+        playing = false; paused = false; counting = false; holding = false;
+        lockPending = false;
+        if (locked) document.exitPointerLock();
+        syncModeButtons();
+        $('#stepPlan').classList.add('hidden');
+        $('#stepSettings').classList.add('hidden');
+        $('#stepResults').classList.add('hidden');
+        $('#stepSurvey').classList.remove('hidden');
+        $('#planBuilder').open = true;
+        $('#planBuilder').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+      });
+      $('#btnQuick').addEventListener('click', () => {
+        if (!$('#inpDpi').reportValidity() || !$('#rngSens').reportValidity()) return;
+        const launchToken = ++rangeLaunchToken;
+        session = { guided: false, idx: 0, count: 0, done: false, list: [] };
+        stats = { flick: null, precision: null, track: null };
+        diff = DIFFS[1];
+        $('#stepSurvey').classList.add('hidden');
+        $('#stepPlan').classList.add('hidden');
+        $('#stepResults').classList.add('hidden');
+        $('#stepSettings').classList.remove('hidden');
+        document.querySelector('.mode-btn[data-mode="' + $('#quickMode').value + '"]').click();
+        document.querySelectorAll('#optDiffLive button').forEach(button => button.classList.toggle('is-on', button.dataset.v === String(diff.id)));
+        $('#btnQuick').disabled = true;
+        if (!isTouch) safeLock();
+        loadThree().then(() => {
+          if (launchToken !== rangeLaunchToken || $('#stepSettings').classList.contains('hidden')) return;
+          threeReady = true;
+          init3d();
+          start();
+          document.querySelector('.range-shell').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'center' });
+        }).catch(() => {
+          if (locked) document.exitPointerLock();
+          $('#btnQuick').disabled = false;
+          rangeNote.textContent = 'Range could not load. Click quick start to retry.';
+        });
+      });
+      $('#pauseDrill').addEventListener('click', event => { event.stopPropagation(); if (playing) pauseRun(); });
+      document.querySelector('a[href="#myProgress"]').addEventListener('click', () => { $('#progressPanel').open = true; });
+
       /* ================= boot ================= */
       let threeReady = false;
       const bootObs = new MutationObserver(() => {
@@ -1517,12 +1624,12 @@
         setDiff(id) { diff = DIFFS[id]; },
         get session() { return session; },
         get targets() { return targets.filter((t) => t.userData.r).map((t) => ({ x: +t.position.x.toFixed(1), y: +t.position.y.toFixed(1), z: +t.position.z.toFixed(1), r: t.userData.r })); },
-        setSens(v) { settings.sens = v; $('#rngSens').value = Math.round(v * 100); $('#valSens').textContent = v.toFixed(2); updateEdpi(); },
+        setSens(v) { applySensitivity(v); },
         get sensV() { return settings.sens; },
         get degPerPx() { return degPerCount(settings.sens); },
         aimAt(x, y, z) {
           const p = camera.position;
-          const dx = - p.x, dy = y - p.y, dz = z - p.z;
+          const dx = x - p.x, dy = y - p.y, dz = z - p.z;
           yaw = Math.atan2(-dx, -dz);
           pitch = Math.atan2(dy, Math.hypot(dx, dz));
           clampPitch();
@@ -1534,4 +1641,4 @@
         get cameraPitch() { return pitch; }
       };
     })();
-  
+

@@ -1,0 +1,56 @@
+.dojo-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.training-page .card::before { content: none; display: none; }
+.dojo-toolbar .rbtn { padding: 10px 18px; }
+.quick-start { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 20px; }
+.quick-start__controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.quick-start label, .sensitivity-grid label { color: var(--muted); font-size: 13px; }
+.dojo-number, .dojo-select { min-width: 0; width: 100%; padding: 11px 12px; border: 1px solid var(--line-strong); background: #080808; color: #fff; font-size: 16px; }
+.dojo-select { width: auto; max-width: 100%; }
+.dojo-number:invalid { border-color: #fff; outline: 1px dashed #888; outline-offset: 3px; }
+.sensitivity-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; gap: 18px; }
+.sensitivity-grid label { display: grid; gap: 7px; }
+.sensitivity-stat { display: grid; gap: 3px; }
+.sensitivity-stat span { font-size: 12px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+.sensitivity-stat output { font-size: 26px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.sens-check { font-size: 12px; color: #aaa; margin-top: 18px; }
+.dojo-expand { border: 1px solid var(--line); margin-top: 20px; background: #050505; }
+.dojo-expand > summary { padding: 17px 22px; cursor: pointer; font-weight: 600; }
+.dojo-expand[open] > summary { border-bottom: 1px solid var(--line); }
+.dojo-expand > .card { margin-top: 0; border: 0; }
+.dojo-expand > .converter-grid { padding: 22px; }
+.converter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.converter-grid label { display: grid; gap: 8px; color: var(--muted); font-size: 13px; }
+.converter-grid .rbtn { padding: 10px 14px; width: fit-content; margin-top: 10px; }
+#sensitivityStatus, #progressStatus { font-size: 13px; color: var(--muted); min-height: 1.65em; }
+.progress-head { display: flex; gap: 22px; align-items: end; flex-wrap: wrap; justify-content: space-between; margin-bottom: 20px; }
+.progress-metrics { display: flex; flex-wrap: wrap; gap: 22px; }
+.progress-metrics div { display: grid; }
+.progress-metrics span { color: var(--muted); font-size: 12px; }
+.progress-metrics strong { font-size: 24px; }
+.progress-chart { display: block; width: 100%; max-height: 220px; border: 1px solid var(--line); margin: 20px 0; }
+.progress-table-wrap { width: 100%; overflow-x: auto; }
+.progress-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.progress-table caption { text-align: left; font-weight: 600; margin-bottom: 10px; }
+.progress-table th, .progress-table td { padding: 12px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.progress-table th { color: var(--muted); font-weight: 500; }
+.progress-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+.progress-actions .rbtn { padding: 10px 16px; }
+.progress-empty { color: var(--muted); padding: 18px 0; font-size: 14px; }
+.range-controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 20px 0; }
+#pauseDrill:disabled { opacity: .4; }
+.range-pause { position: absolute; top: 14px; right: 14px; z-index: 8; padding: 8px 12px; font-size: 11px; }
+.sensitivity-tools { margin-bottom: 26px; }
+@media (max-width: 768px) {
+  .sensitivity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .converter-grid { grid-template-columns: minmax(0, 1fr); }
+  .quick-start { align-items: stretch; }
+}
+@media (max-width: 560px) {
+  .range-pause { top: 100px; }
+  .quick-start__controls { width: 100%; }
+  .quick-start__controls .rbtn { width: 100%; }
+  .quick-start__controls .dojo-select { flex: 1; }
+  .dojo-expand > summary { padding: 15px 18px; }
+  .progress-actions .rbtn { flex: 1; }
+  .set-row > input { width: 100%; }
+}

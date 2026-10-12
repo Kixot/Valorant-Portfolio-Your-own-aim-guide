@@ -7,6 +7,7 @@
   const root = document.documentElement;
   const interactive = 'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable="true"]';
   let frame = 0, x = 0, y = 0, positioned = false, hasPointer = false, activeTarget = null;
+  let targetStarted = 0, cornerOrigins = [], cornerPositions = [];
   const corners = cur ? ['tl', 'tr', 'br', 'bl'].map(position => {
     const corner = document.createElement('span');
     corner.className = 'cur__corner cur__corner--' + position;
@@ -33,9 +34,16 @@
         [rect.left - 3, rect.top - 3], [rect.right - 9, rect.top - 3],
         [rect.right - 9, rect.bottom - 9], [rect.left - 3, rect.bottom - 9]
       ];
+      const progress = Math.min(1, (performance.now() - targetStarted) / 220);
+      const ease = 1 - Math.pow(1 - progress, 3);
       corners.forEach((corner, index) => {
         const [left, top] = positions[index];
-        corner.style.transform = `translate3d(${left - x + 6}px,${top - y + 6}px,0)`;
+        const from = cornerOrigins[index] || [x - 18, y - 18];
+        const px = from[0] + (left - from[0]) * ease;
+        const py = from[1] + (top - from[1]) * ease;
+        cornerPositions[index] = [px, py];
+        corner.style.transform = `translate3d(${px - x + 6}px,${py - y + 6}px,0)`;
+        corner.style.rotate = `${(1 - ease) * 90}deg`;
       });
     }
     cur.classList.add('is-visible');
@@ -45,8 +53,14 @@
     if (activeTarget) frame = requestAnimationFrame(draw);
   };
   const selectTarget = target => {
-    activeTarget = target?.closest?.(interactive) || null;
-    if (activeTarget?.matches(':disabled')) activeTarget = null;
+    let next = target?.closest?.(interactive) || null;
+    if (next?.matches(':disabled')) next = null;
+    if (next !== activeTarget && next) {
+      targetStarted = performance.now();
+      cornerOrigins = activeTarget && cornerPositions.length ? cornerPositions.map(position => [...position])
+        : [[x - 18, y - 18], [x + 6, y - 18], [x + 6, y + 6], [x - 18, y + 6]];
+    }
+    activeTarget = next;
     cur?.classList.toggle('is-hover', !!activeTarget);
   };
   window.addEventListener('pointermove', (event) => {
