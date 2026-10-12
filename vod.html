@@ -48,6 +48,7 @@
     <section class="section" aria-label="VOD Review">
       <div class="section__head"><h2 class="section__title">VOD Review</h2></div>
       <div class="vod-card" id="vodSources">
+        <p id="localPreviewHelp" class="vod-local-help" role="status" hidden>YouTube cannot play from a directly opened HTML file. Double-click Preview.cmd in the site folder, then use the page it opens.</p>
         <form id="youtubeForm" class="vod-source-form">
           <label for="youtubeUrl">YouTube link</label>
           <input id="youtubeUrl" type="text" inputmode="url" maxlength="2048" placeholder="https://www.youtube.com/watch?v=..." required />
@@ -67,12 +68,7 @@
         <div class="vod-player-actions"><button class="rbtn" id="markRound" type="button" disabled>Mark my point</button><button class="rbtn" id="tagMistake" type="button" disabled>Tag a mistake</button></div>
       </div>
       <div id="reviewWorkspace" hidden>
-        <section class="vod-card" aria-label="Estimated round starts">
-          <h3>Estimated round starts</h3>
-          <p class="vod-empty">Time based estimates, not gameplay detection.</p>
-          <div class="vod-actions" id="autoRoundList"></div><p class="vod-empty" id="autoRoundEmpty">Waiting for video duration.</p>
-          <details class="vod-round-settings"><summary>Adjust estimates</summary><form id="roundTimingForm" class="vod-source-form"><label>First round (seconds)<input id="roundFirst" inputmode="decimal" required value="0" /></label><label>Round spacing (seconds)<input id="roundInterval" type="number" min="30" max="600" required value="130" /></label><button class="rbtn" type="submit">Update estimates</button></form></details>
-        </section>
+        <section class="vod-card" aria-label="Detected rounds"><h3>Rounds</h3><p class="vod-empty">Google AI analyzes public YouTube videos. Check uncertain timestamps.</p><div class="vod-actions"><button class="rbtn" type="button" id="analyzeRounds">Analyze rounds</button><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop waiting</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul></section>
         <form class="vod-card vod-tag-form" id="mistakeForm" hidden>
           <label for="mistakeTime">Time (seconds or mm:ss)<input id="mistakeTime" type="text" inputmode="decimal" required maxlength="16" /></label>
           <label for="mistakeType">Type<select id="mistakeType"></select></label>
@@ -110,6 +106,7 @@
   <script src="js/shared.js" defer></script>
   <script src="js/navigation.js" defer></script>
   <script src="js/vod-core.js" defer></script>
+  <script src="js/round-analysis-client.js" defer></script>
   <script src="js/vod.js" defer></script>
 </body>
 </html>

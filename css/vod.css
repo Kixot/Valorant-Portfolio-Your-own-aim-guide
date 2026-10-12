@@ -4,6 +4,7 @@
 .vod-card h3 { font-size: 18px; margin-bottom: 18px; }
 .vod-source-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; align-items: end; }
 .vod-source-form > label { grid-column: 1 / -1; }
+.vod-local-help { padding-bottom: 20px; font-size: 13px; line-height: 1.7; color: #bbb; }
 .vod-page label { font-size: 13px; color: #b0b0b0; }
 .vod-page input:not([type="file"]), .vod-page textarea, .vod-page select { width: 100%; min-width: 0; padding: 12px; font-size: 16px; background: #000; color: #fff; border: 1px solid var(--line-strong); border-radius: 0; }
 .vod-page textarea { resize: vertical; display: block; }
@@ -26,11 +27,7 @@
 .vod-page .rbtn { padding: 12px 16px; font-size: 12px; letter-spacing: .03em; }
 .vod-page .rbtn:disabled { opacity: .35; cursor: not-allowed; }
 .vod-review-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
-.vod-round-settings { margin-top: 20px; }
-#autoRoundList { max-height: 220px; overflow-y: auto; margin-top: 14px; padding: 2px; align-content: start; }
-.vod-round-settings summary { cursor: pointer; font-size: 12px; }
-.vod-round-settings form { margin-top: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; }
-.vod-round-settings form > label { grid-column: auto; display: grid; gap: 8px; }
+.vod-round-label { margin-bottom: 12px; font-size: 12px; color: #bbb; }
 .vod-entries { list-style: none; padding: 0; }
 .vod-entry { padding: 16px 0; border-bottom: 1px solid #222; }
 .vod-entry:last-child { border: 0; }

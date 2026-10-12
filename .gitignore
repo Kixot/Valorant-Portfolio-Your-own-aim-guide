@@ -2,3 +2,6 @@
 .openai/
 node_modules/
 .task-*
+.env
+.env.*
+!.env.example

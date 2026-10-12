@@ -26,12 +26,12 @@ test('file identities differ by name, size and modification time', () => {
   assert.notEqual(core.key(source), core.key({ ...source, size: 101 }));
   assert.notEqual(core.key(source), core.key({ ...source, lastModified: 2 }));
 });
-test('automatic time estimates never exceed duration and remain distinct from custom points', () => {
-  const data = core.validateReview(review()); data.roundTiming.duration = 300;
-  assert.deepEqual(core.autoRounds(data).map(point => point.time), [0, 130, 260]);
-  data.roundTiming.first = 50; data.roundTiming.interval = 100;
-  assert.deepEqual(core.autoRounds(data).map(point => point.time), [50, 150, 250]);
+test('legacy interval metadata is ignored without losing custom points', () => {
+  const original = review(); original.roundTiming = { first: 0, interval: 130, duration: 300 };
+  const data = core.validateReview(original);
   assert.equal(data.rounds.length, 0);
-  assert.match(core.reviewText(data), /Estimated round starts \(time based\)/);
-  assert.throws(() => core.validateReview({ ...data, roundTiming: { ...data.roundTiming, interval: 0 } }));
+  assert.equal('roundTiming' in data, false);
+  assert.doesNotMatch(core.reviewText(data), /Estimated round starts/);
+  original.rounds.push({ id: 'saved', time: 71.5, label: 'My point' });
+  assert.equal(core.validateReview(original).rounds[0].time, 71.5);
 });

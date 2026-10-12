@@ -3,8 +3,13 @@
   const core = window.KixotVodCore;
   const $ = id => document.getElementById(id);
   const prefix = 'kixot_vod_v1:';
+  const youtubeSupported = ['http:', 'https:'].includes(location.protocol);
+  const previewHelp = 'YouTube needs a web address. Double-click Preview.cmd in the site folder, then use the page it opens.';
+  $('localPreviewHelp').hidden = youtubeSupported;
   const reviews = new Map(), files = new Map(), damaged = new Set();
   let current = null, token = 0, objectUrl = null, youtube = null, loaded = false, apiPromise = null, playerTimer = null;
+  let analysisTask = null;
+  const analysisTried = new Set();
   const local = $('localPlayer');
   const message = text => { $('vodStatus').textContent = text; };
   const warning = text => { $('vodStorageStatus').textContent = text; };
@@ -33,7 +38,7 @@
     } catch { warning('This review is kept in this visit. Export before leaving; browser storage could not save it.'); return false; }
   };
   const save = () => { current.updated = new Date().toISOString(); persist(current); render(); };
-  const newReview = source => ({ version: 1, key: core.key(source), source, updated: new Date().toISOString(), nextRound: 1, rounds: [], mistakes: [], roundTiming: { first: 0, interval: 130, duration: 0 } });
+  const newReview = source => ({ version: 1, key: core.key(source), source, updated: new Date().toISOString(), nextRound: 1, rounds: [], mistakes: [], detectedRounds: [] });
   const adapter = {
     duration() { try { return current?.source.type === 'file' ? local.duration : youtube?.getDuration?.(); } catch { return 0; } },
     currentTime() {
@@ -52,6 +57,7 @@
     pause() { try { local.pause(); youtube?.pauseVideo?.(); } catch {} }
   };
   const loadApi = () => {
+    if (!youtubeSupported) return Promise.reject(new Error(previewHelp));
     if (window.YT?.Player) return Promise.resolve();
     if (apiPromise) return apiPromise;
     apiPromise = new Promise((resolve, reject) => {
@@ -75,15 +81,19 @@
   const syncControls = () => {
     $('markRound').disabled = !loaded; $('tagMistake').disabled = !loaded;
     ['exportReviewText', 'exportReviewJson', 'shareReview', 'deleteReview'].forEach(id => { $(id).disabled = !current; });
+    $('analyzeRounds').disabled = !loaded || current?.source.type !== 'youtube' || !!analysisTask;
+    $('cancelRoundAnalysis').hidden = !analysisTask;
     $('activeVideo').textContent = current ? name(current) : 'Choose a video';
   };
   const success = expected => {
     if (expected !== token || loaded || !current) return;
     loaded = true; $('playerEmpty').hidden = true;
     clearTimeout(playerTimer);
-    updateDuration(); persist(current); render(); message('Video ready.'); analytics('video_loaded');
+    persist(current); render(); message('Video ready.'); analytics('video_loaded');
+    if (current.source.type === 'youtube') startAnalysis(true);
   };
   const cleanPlayer = () => {
+    stopAnalysis();
     clearTimeout(playerTimer);
     loaded = false; adapter.pause();
     local.removeAttribute('src'); local.load(); local.hidden = true;
@@ -96,6 +106,7 @@
     const expected = ++token; cleanPlayer();
     current = reviews.get(core.key(source)) || newReview(source);
     $('mistakeForm').hidden = true; $('manualShare').hidden = true;
+    $('roundAnalysisStatus').textContent = '';
     try { sessionStorage.setItem('kixot_vod_active_v1', current.key); } catch {}
     persist(current); render();
     if (source.type === 'file') {
@@ -184,9 +195,7 @@
     });
     $('savedEmpty').hidden = reviews.size > 0; $('exportAllReviews').disabled = !reviews.size;
     if (!current) return;
-    $('roundFirst').value = current.roundTiming.first;
-    $('roundInterval').value = current.roundTiming.interval;
-    renderAutoRounds();
+    renderDetectedRounds();
     renderEntries($('roundList'), current.rounds, 'round'); renderEntries($('mistakeList'), current.mistakes, 'mistake');
     $('mistakeChart').replaceChildren(); $('mistakeCounts').replaceChildren();
     const counts = core.TYPES.map(type => current.mistakes.filter(item => item.type === type).length);
@@ -197,24 +206,78 @@
       const row = element('tr'); row.append(element('th', type), element('td', String(counts[index]))); row.firstChild.scope = 'row'; $('mistakeCounts').appendChild(row);
     });
   };
-  const renderAutoRounds = () => {
-    $('autoRoundList').replaceChildren();
-    core.autoRounds(current).forEach(round => $('autoRoundList').appendChild(button(core.stamp(round.time) + ' ' + round.label, () => adapter.seek(round.time))));
-    $('autoRoundEmpty').hidden = core.autoRounds(current).length > 0;
+  const renderDetectedRounds = () => {
+    const host = $('detectedRoundList'); host.replaceChildren();
+    if (!current.detectedRounds.length) { host.appendChild(element('p', 'No detected rounds yet.', 'vod-empty')); return; }
+    [...current.detectedRounds].sort((a, b) => a.start - b.start).forEach(item => {
+      const row = element('li', undefined, 'vod-entry');
+      row.appendChild(element('p', 'Map ' + item.map + ' / Round ' + item.round + ' / ' + (item.confirmed ? 'Confirmed' : item.confidence + ' confidence'), 'vod-round-label'));
+      const actions = element('div', undefined, 'vod-actions');
+      actions.append(button('Start ' + core.stamp(item.start), () => adapter.seek(item.start)), button('End ' + core.stamp(item.end), () => adapter.seek(item.end)), button('Edit', () => {
+        const form = element('form', undefined, 'vod-edit');
+        const startLabel = element('label', 'Start (seconds or mm:ss)'), endLabel = element('label', 'End (seconds or mm:ss)');
+        const start = element('input'), end = element('input'); start.value = item.start; end.value = item.end; start.required = end.required = true;
+        startLabel.appendChild(start); endLabel.appendChild(end);
+        const submit = element('button', 'Save', 'rbtn vod-mini'); submit.type = 'submit';
+        form.append(startLabel, endLabel, submit, button('Cancel', render));
+        form.addEventListener('submit', event => {
+          event.preventDefault(); const first = core.time(start.value), last = core.time(end.value), duration = adapter.duration();
+          if (first === null || last === null || first >= last || (Number.isFinite(duration) && duration > 0 && last > duration)) { $('roundAnalysisStatus').textContent = 'Enter a start before the end, within this video.'; return; }
+          item.start = first; item.end = last; item.confirmed = true; save();
+        }); row.replaceChildren(form); start.focus();
+      }), button('Delete', () => { current.detectedRounds.splice(current.detectedRounds.indexOf(item), 1); save(); }));
+      if (!item.confirmed) actions.appendChild(button('Confirm', () => { item.confirmed = true; save(); }));
+      row.append(actions, element('p', item.evidence, 'vod-note')); host.appendChild(row);
+    });
   };
-  const updateDuration = () => {
-    if (!current || !loaded) return;
-    const duration = adapter.duration();
-    if (!Number.isFinite(duration) || duration <= 0 || duration > 86400 || current.roundTiming.duration === duration) return;
-    current.roundTiming.duration = duration; persist(current); renderAutoRounds();
+  const stopAnalysis = () => {
+    analysisTask?.abort(); analysisTask = null;
   };
-  setInterval(() => { if (!document.hidden) updateDuration(); }, 1000);
-  $('roundTimingForm').addEventListener('submit', event => {
-    event.preventDefault(); if (!current) return;
-    const first = core.time($('roundFirst').value), interval = Number($('roundInterval').value);
-    if (first === null || interval < 30 || interval > 600 || !Number.isFinite(interval)) { message('Use a valid first timestamp and spacing from 30 to 600 seconds.'); return; }
-    current.roundTiming.first = first; current.roundTiming.interval = interval; save(); message('Round estimates updated.');
+  const wait = (milliseconds, signal) => new Promise((resolve, reject) => {
+    const abort = () => { clearTimeout(timer); reject(new DOMException('Stopped', 'AbortError')); };
+    const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, milliseconds);
+    signal.addEventListener('abort', abort, { once: true });
   });
+  const startAnalysis = async automatic => {
+    if (!loaded || !current || current.source.type !== 'youtube' || analysisTask) return;
+    const key = current.key, expected = token;
+    if (automatic && (current.detectedRounds.length || analysisTried.has(key))) return;
+    if (!automatic && current.detectedRounds.length && !confirm('Replace the detected round timestamps? Your custom points stay saved.')) return;
+    analysisTried.add(key);
+    const task = new AbortController(); analysisTask = task; syncControls();
+    const jobKey = 'kixot_round_job_v1:' + key;
+    try {
+      $('roundAnalysisStatus').textContent = 'Checking round analysis.';
+      const info = await window.KixotRoundAnalysis.info(task.signal);
+      if (!info.configured) throw new Error('Round analysis is not available yet.');
+      const duration = adapter.duration();
+      if (!Number.isFinite(duration) || duration <= 0) throw new Error('Wait for the video duration, then analyze again.');
+      if (duration > info.maximumDuration) throw new Error('Round analysis supports videos up to two hours.');
+      let job = null; try { job = sessionStorage.getItem(jobKey); } catch {}
+      $('roundAnalysisStatus').textContent = 'Analyzing gameplay and round transitions.';
+      let result = job ? await window.KixotRoundAnalysis.poll(job, task.signal) : await window.KixotRoundAnalysis.start(current.source.videoId, duration, task.signal);
+      const started = performance.now();
+      while (result.status === 'processing') {
+        if (expected !== token || current?.key !== key || task.signal.aborted) return;
+        if (typeof result.job !== 'string') throw new Error('Round analysis returned an invalid job.');
+        job = result.job; try { sessionStorage.setItem(jobKey, job); } catch {}
+        if (performance.now() - started > 1500000) throw new Error('Analysis is taking longer than expected. Click Analyze rounds to check the saved job again.');
+        await wait(Math.max(15, Math.min(60, Number(result.pollAfter) || 15)) * 1000, task.signal);
+        while (document.hidden) await wait(2000, task.signal);
+        result = await window.KixotRoundAnalysis.poll(job, task.signal);
+      }
+      if (expected !== token || current?.key !== key || task.signal.aborted) return;
+      if (result.status !== 'completed') throw new Error('Round analysis could not finish.');
+      const rounds = core.validateDetectedRounds(result.rounds);
+      if (rounds.some(item => item.end > duration)) throw new Error('Analysis returned timestamps outside this video.');
+      current.detectedRounds = rounds; save(); try { sessionStorage.removeItem(jobKey); } catch {}
+      $('roundAnalysisStatus').textContent = rounds.length ? 'Round timestamps detected. Check them before confirming.' : 'No complete live rounds detected.';
+    } catch (error) {
+      if (expected === token && error.name !== 'AbortError') { $('roundAnalysisStatus').textContent = error.message; if (/expired|could not establish|cannot access/.test(error.message)) try { sessionStorage.removeItem(jobKey); } catch {} }
+    } finally { if (analysisTask === task) { analysisTask = null; syncControls(); } }
+  };
+  $('analyzeRounds').addEventListener('click', () => startAnalysis(false));
+  $('cancelRoundAnalysis').addEventListener('click', () => { stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = 'Stopped waiting. Analyze rounds resumes the saved job if available.'; });
   const deleteSaved = review => {
     if (!confirm('Delete this saved review and all its tags?')) return;
     try { localStorage.removeItem(prefix + review.key); damaged.delete(review.key); } catch { warning('Removed from this visit only. Browser storage could not delete the saved copy.'); }
@@ -234,6 +297,7 @@
   $('youtubeForm').addEventListener('submit', event => {
     event.preventDefault(); const id = core.parseYouTube($('youtubeUrl').value);
     if (!id) { message('Enter a YouTube watch, youtu.be, shorts or embed link with a valid video ID.'); return; }
+    if (!youtubeSupported) { message(previewHelp); return; }
     select({ type: 'youtube', videoId: id });
   });
   $('localFile').addEventListener('change', () => {
@@ -281,7 +345,11 @@
       const merged = incoming.map(review => {
         const existing = reviews.get(review.key); if (!existing) return review;
         const combine = (a, b) => [...a, ...b.filter(item => !a.some(old => old.id === item.id))];
-        return core.validateReview({ ...review, rounds: combine(existing.rounds, review.rounds), mistakes: combine(existing.mistakes, review.mistakes), nextRound: Math.max(existing.nextRound, review.nextRound) });
+        const detectionIds = new Set(existing.detectedRounds.map(item => item.id));
+        const additions = review.detectedRounds.filter(item => !existing.detectedRounds.some(old => old.map === item.map && old.round === item.round)).map(item => {
+          const id = detectionIds.has(item.id) ? uid() : item.id; detectionIds.add(id); return { ...item, id };
+        });
+        return core.validateReview({ ...review, rounds: combine(existing.rounds, review.rounds), mistakes: combine(existing.mistakes, review.mistakes), detectedRounds: [...existing.detectedRounds, ...additions], nextRound: Math.max(existing.nextRound, review.nextRound) });
       });
       merged.forEach(review => persist(review));
       if (current && reviews.has(current.key)) current = reviews.get(current.key);
@@ -293,9 +361,9 @@
   const observer = new IntersectionObserver(entries => {
     if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); loadApi().catch(() => {}); }
   }, { rootMargin: '250px' });
-  observer.observe($('vodSources'));
+  if (youtubeSupported) observer.observe($('vodSources'));
   document.addEventListener('visibilitychange', () => { if (document.hidden) adapter.pause(); });
-  window.addEventListener('pagehide', () => { adapter.pause(); if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; } });
+  window.addEventListener('pagehide', () => { stopAnalysis(); adapter.pause(); if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; } });
   window.addEventListener('pageshow', event => { if (event.persisted && current?.source.type === 'file') select(current.source); });
   render();
   try { const saved = sessionStorage.getItem('kixot_vod_active_v1'); if (saved && reviews.has(saved)) select(reviews.get(saved).source); } catch {}

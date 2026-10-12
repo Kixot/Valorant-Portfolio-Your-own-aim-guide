@@ -1,24 +1,26 @@
 # Kixot
 
-Static HTML, CSS and JavaScript. No build step or server-side code.
+Plain HTML, CSS and JavaScript, with an optional private Node service for round analysis. No framework or build step.
 
 - `index.html`: existing hero, portfolio and Dojo/VOD previews.
 - `dojo.html`: mode chooser, quick start, plan builder, range sensitivity and local progress.
-- `vod.html`: YouTube/local review, estimated round links, custom points, mistake tags and local saves.
+- `vod.html`: YouTube/local review, detected round boundaries, custom points, mistake tags and local saves.
 - `css/`, `js/`, `assets/`: styles, behavior and existing site assets.
 - `training.html` and `pages/training.html`: compatibility redirects to the Dojo.
 
 Serve this folder with any static web server. Deploy the folder contents together so the entry points and assets keep their relative paths. Canonical pages are listed in `sitemap.xml`; compatibility redirects are excluded.
 
-Sensitivity uses 0.07 degrees per raw mouse count per sens point for Valorant. The range requests unadjusted pointer-lock input where the browser supports it. Only sensitivity is shown, without converters or distance metrics. Quick 30 opens the selected range ready to adjust sensitivity, then Start begins the countdown. The completed survey opens a guided range. Escape pauses a drill; progress is hidden until the drill ends. Homepage quick start opens the same range.
+On Windows, double-click `Preview.cmd`. It opens the VOD page at a local web address, reusing this site's matching preview or starting one on a free port. It finds Node or the existing Codex bundled Node runtime; built-in PowerShell/.NET provides a static-only fallback. The listener is bound only to 127.0.0.1. Opening `vod.html` directly as `file://` cannot provide the HTTP referrer required by YouTube, so that mode shows launcher instructions instead of creating a broken iframe. Local files remain available in either mode and never upload.
+
+Sensitivity uses 0.07 degrees per raw mouse count per sens point for Valorant. The range requests unadjusted pointer-lock input where the browser supports it. DPI and sensitivity are shown without converters or distance metrics; both persist locally. DPI records the actual mouse configuration and is not multiplied into already-raw movement counts. Unsupported raw input shows a warning. Quick 30 opens the selected range ready to adjust settings, then Start begins the countdown. The completed survey opens a guided range. Escape pauses a drill; progress is hidden until the drill ends. Homepage quick start opens the same range.
 
 Progress uses `kixot_drill_progress_v1` with a versioned JSON schema. Completed runs record date, mode, difficulty, DPI, sens, score and accuracy. Imports validate the complete file and merge unique run IDs. Invalid storage is preserved; unavailable or full storage keeps new results in memory for export. Clear requires confirmation. Exports are JSON, with no account or network storage.
 
 The shared cursor stays a plus and becomes a dot over interactive controls. Pointer coordinates have no transition. Sliders keep the plus; text fields, dropdowns and video controls retain native cursors. Touch, coarse-pointer and reduced-motion users retain the native cursor. It mounts inside the active fullscreen element and returns on exit. Coding-style fonts remain outside the original hero; the folder menu uses the Apple system font stack with platform fallbacks.
 
-The black folder and branched menu are vanilla adaptations of React Bits, with the source license in `THIRD_PARTY_NOTICES.md`. The folder label reads Kixot and the gap beneath it keeps the menu open while crossing into its branches.
+The black folder and branched menu are vanilla adaptations of React Bits, with the source license in `THIRD_PARTY_NOTICES.md`. The folder label reads Kixot in the Apple system font stack; the branches use Courier. The gap beneath the folder keeps the menu open while crossing into its branches.
 
-VOD reviews are versioned browser saves, with JSON/text export, JSON import and plain-text sharing. Local files use object URLs and never upload. Round links are automatically generated time estimates, not gameplay detection; custom points remain available. The official YouTube API loads near the source controls and keeps a matching origin and an explicit referrer policy.
+VOD reviews are versioned browser saves, with JSON/text export, JSON import and plain-text sharing. Local files use object URLs and never upload. Fixed-interval round estimates were removed. The authorized AI service analyzes public YouTube gameplay for observed start/end pairs, with confidence, editing and confirmation. It needs a private key from a billing-disabled Google project. No live detection quality is claimed before real video validation. See [round-analysis setup](docs/round-analysis.md). The official YouTube playback API loads near the source controls and keeps a matching origin and an explicit referrer policy.
 
 Analytics is default off and unconfigured. Add your measurement ID only at the marked line in `js/analytics.js`. The popup can be reopened from the footer. Follow [the GA4 setup instructions](docs/analytics.md) and [validation report](docs/validation.md).
 

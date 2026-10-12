@@ -335,7 +335,7 @@
          player chooses another exercise after the current run ends. */
       const syncModeButtons = () => {
         const busy = playing || counting;
-        document.querySelectorAll('#rngSens, #optDiffLive button, #btnQuick, #btnBackPlan, #btnChooseMode').forEach(control => { control.disabled = busy; });
+        document.querySelectorAll('#rngDpi, #rngSens, #optDiffLive button, #btnQuick, #btnBackPlan, #btnChooseMode').forEach(control => { control.disabled = busy; });
         $('#myProgress').hidden = busy;
         document.querySelector('a[href="#myProgress"]').hidden = busy;
         document.querySelectorAll('.mode-btn').forEach((b) => {
@@ -379,7 +379,7 @@
         const saved = JSON.parse(localStorage.getItem('kixot_sens') || 'null');
         if (saved && (saved.version === undefined || saved.version === 1)) {
           if (Number.isFinite(saved.sens) && saved.sens >= 0.001 && saved.sens <= 10) settings.sens = saved.sens;
-          if (Number.isFinite(saved.dpi) && saved.dpi >= 50 && saved.dpi <= 64000) settings.dpi = saved.dpi;
+          if (Number.isSafeInteger(saved.dpi) && saved.dpi >= 50 && saved.dpi <= 64000) settings.dpi = saved.dpi;
         }
       } catch { /* Keep defaults when settings storage is unavailable or damaged. */ }
 
@@ -472,13 +472,18 @@
       bindRange('#rngGap', '#valGap', 'gap', (v) => v);
 
       const readSensitivityInputs = () => {
+        const dpi = $('#rngDpi').valueAsNumber;
+        if (!$('#rngDpi').checkValidity() || !Number.isSafeInteger(dpi)) { $('#sensitivityStatus').textContent = 'Enter DPI from 50 to 64000.'; return; }
         const sens = $('#rngSens').valueAsNumber;
         if (!$('#rngSens').checkValidity() || !Number.isFinite(sens)) {
           $('#sensitivityStatus').textContent = 'Enter sens from 0.001 to 10.';
           return;
         }
+        settings.dpi = dpi;
         applySensitivity(sens);
       };
+      $('#rngDpi').addEventListener('input', readSensitivityInputs);
+      $('#rngDpi').value = settings.dpi;
       $('#rngSens').addEventListener('input', readSensitivityInputs);
       $('#rngSens').value = settings.sens;
       drawXh();
@@ -568,7 +573,7 @@
         } catch (error) {
           // Only unsupported raw input needs a second request. Other failures wait for a click.
           if (error?.name === 'NotSupportedError') {
-            try { await canvas3d.requestPointerLock(); } catch {}
+            try { await canvas3d.requestPointerLock(); $('#sensitivityStatus').textContent = 'Raw mouse input is unavailable in this browser; sensitivity may differ.'; } catch {}
           }
         } finally { lockRequest = false; }
       };
@@ -877,7 +882,7 @@
 
       const start = () => {
         if (counting || (playing && !paused) || $('#stepSettings').classList.contains('hidden')) return;
-        if (!$('#rngSens').reportValidity()) return;
+        if (!$('#rngDpi').reportValidity() || !$('#rngSens').reportValidity()) return;
         if (!threeReady) { loadThree().then(() => { threeReady = true; init3d(); start(); }).catch(() => {}); return; }
         if (!renderer) init3d();
         resizeXhLayer();

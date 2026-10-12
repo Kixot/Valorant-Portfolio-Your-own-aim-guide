@@ -11,7 +11,7 @@
 .dock-trigger { position: absolute; inset: 0; border: 0; border-radius: 7px; background: transparent; cursor: pointer; z-index: 3; }
 .site-dock.is-open .dock-face { transform: perspective(600px) rotateX(-34deg); }
 .site-dock.is-open .dock-paper { opacity: 1; transform: translateY(0); }
-.branch-menu { position: absolute; top: 84px; left: 0; width: 240px; padding: 6px 14px 12px; background: #0003; pointer-events: auto; }
+.branch-menu { position: absolute; top: 84px; left: 0; width: 240px; padding: 6px 14px 12px; background: #0003; pointer-events: auto; font-family: 'Courier New', Courier, ui-monospace, monospace; }
 .branch-menu::before { content: ''; position: absolute; top: 6px; bottom: 12px; left: 0; width: 2px; background: linear-gradient(#444 70%,transparent); }
 .branch-marker { position: absolute; top: 0; left: 0; width: 2px; height: 16px; background: #fff; transition: transform 220ms cubic-bezier(.23,1,.32,1); }
 .branch-heading { display: block; width: 100%; text-align: left; padding: 9px 0; color: #aaa; font-size: 15px; line-height: 18px; border: 0; background: transparent; cursor: pointer; }

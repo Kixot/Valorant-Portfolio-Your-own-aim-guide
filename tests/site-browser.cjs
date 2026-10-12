@@ -38,9 +38,8 @@ const passed = [];
     assert.equal(gaRequests.length, 0, 'empty GA ID must not load even after accept');
     await load(page);
     assert.equal(await page.locator('#youtubePlayer').getAttribute('referrerpolicy'), 'strict-origin-when-cross-origin');
-    assert.equal(await page.locator('#autoRoundList button').count(), 5);
-    await page.locator('#autoRoundList button').nth(1).click();
-    assert.equal(await page.evaluate(() => window.__players.at(-1).time), 130);
+    assert.equal(await page.locator('#autoRoundList').count(), 0);
+    await page.evaluate(() => { window.__players.at(-1).time = 130; });
     await page.locator('#markRound').click(); assert.match(await page.locator('#roundList').innerText(), /02:10 Point 1/i);
     await page.locator('#roundList button').filter({ hasText: /^Edit$/ }).click();
     await page.locator('#roundList input').first().fill('00:35');
@@ -96,7 +95,7 @@ const passed = [];
       assert.match(await page.locator('#vodStatus').innerText(), new RegExp('code ' + code)); assert.equal(await page.locator('#markRound').isDisabled(), true);
     }
     await load(page);
-    assert.deepEqual(errors, []); passed.push('Review CRUD, seeking, automatic estimates, switch, restore, export/import, safe text, sharing fallback, confirmed deletion, cursor and menu');
+    assert.deepEqual(errors, []); passed.push('Review CRUD, seeking, switch, restore, export/import, safe text, sharing fallback, confirmed deletion, cursor and menu');
 
     assert.ok(process.env.SITE_TEST_VIDEO, 'Set SITE_TEST_VIDEO to a short local MP4 clip for the media checks.');
     const localBytes = fs.readFileSync(process.env.SITE_TEST_VIDEO);

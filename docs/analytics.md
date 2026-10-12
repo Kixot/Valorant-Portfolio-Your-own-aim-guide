@@ -30,7 +30,7 @@ This measures users reaching each step, not a unique drill-by-drill session iden
 
 ## Events and privacy
 
-The site's custom event allowlist is `dojo_opened`, `drill_started`, `drill_completed`, `video_loaded`, `round_marked`, `mistake_tag_added`, `review_exported`. Custom parameters are restricted to allowed values for `drill_mode`, `difficulty`, `video_source`, `mistake_type`. `round_marked` records a successfully added custom point; automatic estimates do not flood analytics with marker events.
+The site's custom event allowlist is `dojo_opened`, `drill_started`, `drill_completed`, `video_loaded`, `round_marked`, `mistake_tag_added`, `review_exported`. Custom parameters are restricted to allowed values for `drill_mode`, `difficulty`, `video_source`, `mistake_type`. `round_marked` records a successfully added custom point; detected rounds do not send analytics events.
 
 Riot IDs, personal names, notes, file names and video links are not event parameters. Page locations omit queries and fragments; page referrers are empty. Sharing and exported reviews are local actions and may contain the user's own notes and source information. Nothing is uploaded by this reviewer. GA's standard session and first-visit bookkeeping is managed by GA itself after consent.
 
