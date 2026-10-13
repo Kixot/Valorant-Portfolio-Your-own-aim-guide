@@ -17,6 +17,7 @@ const passed = [];
   const contexts = [];
   const fresh = async (options = {}) => {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, ...options }); contexts.push(context);
+    await context.route('**/js/analytics.js', route => route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, '../js/analytics.js'), 'utf8').replace(/const GA_MEASUREMENT_ID = '[^']*';/, "const GA_MEASUREMENT_ID = '';") }));
     await context.route('https://www.youtube.com/iframe_api', route => route.fulfill({ contentType: 'text/javascript', body: fakeApi }));
     await context.route('https://www.youtube.com/embed/**', route => route.fulfill({ contentType: 'text/html', body: '<html><body>Test player</body></html>' }));
     await context.route('**/api/analyze-rounds', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ configured: false }) }));
@@ -128,7 +129,7 @@ const passed = [];
     assert.match(await quota.page.locator('#vodStorageStatus').innerText(), /this visit/); assert.deepEqual(quota.errors, []); passed.push('Quota failures keep the current review available for export');
 
     const analytics = await fresh(); let gaLoads = 0;
-    const analyticsSource = fs.readFileSync(path.join(__dirname, '../js/analytics.js'), 'utf8').replace("const GA_MEASUREMENT_ID = '';", "const GA_MEASUREMENT_ID = 'G-ABCDEF1234';");
+    const analyticsSource = fs.readFileSync(path.join(__dirname, '../js/analytics.js'), 'utf8').replace(/const GA_MEASUREMENT_ID = '[^']*';/, "const GA_MEASUREMENT_ID = 'G-ABCDEF1234';");
     await analytics.context.route('**/js/analytics.js', route => route.fulfill({ contentType: 'text/javascript', body: analyticsSource }));
     await analytics.context.route('https://www.googletagmanager.com/**', route => { gaLoads++; return route.fulfill({ contentType: 'text/javascript', body: '' }); });
     await analytics.page.goto(base + '/vod.html');

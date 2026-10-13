@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   // GA4 CONFIG: paste your G- measurement ID between these quotes.
-  const GA_MEASUREMENT_ID = '';
+  const GA_MEASUREMENT_ID = 'G-YKWM2XBXYY';
   const validId = /^G-[A-Z0-9]{6,}$/.test(GA_MEASUREMENT_ID) && !/YOUR|PLACEHOLDER|XXXX|TEST/.test(GA_MEASUREMENT_ID);
 
   const events = new Set(['dojo_opened', 'drill_started', 'drill_completed', 'video_loaded', 'round_marked', 'mistake_tag_added', 'review_exported']);
@@ -51,7 +51,7 @@
     document.head.appendChild(script);
   };
   window.KixotAnalytics = Object.freeze({ track });
-  // Optional free GA4 success events use the existing empty ID above.
+  // GA4 page views and successful actions use the configured property above.
   activate();
   // The installed package's vanilla SDK is shipped as a browser module.
   // Local previews and directly opened files never request Vercel collection.
