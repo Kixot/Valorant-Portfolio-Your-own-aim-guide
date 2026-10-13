@@ -13,16 +13,19 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
     const page = await context.newPage(), errors = [], requests = [];
     page.on('pageerror', error => errors.push(error.message));
     const rounds = [{ id: 'detected-0', map: 1, round: 1, start: 71.5, end: 148.25, confidence: 'high', evidence: '<img src=x onerror=alert(1)>', confirmed: false }, { id: 'detected-1', map: 1, round: 2, start: 180, end: 235, confidence: 'low', evidence: 'Score changed.', confirmed: false }];
+    let emptyResult = false;
     await context.route('**/api/analyze-rounds', async route => {
       const body = route.request().postDataJSON();
       if (route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ configured: true, maximumDuration: 7200 }) });
       requests.push(body);
-      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'completed', rounds }) });
+      if (emptyResult) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'completed', rounds: [] }) });
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'completed', rounds, discarded: 1, message: 'Kept 2 candidate rounds; rejected 1 invalid or ambiguous entry. Review the remaining timestamps.' }) });
     });
     await page.goto(base + '/vod.html');
     await page.locator('#youtubeUrl').fill('https://youtu.be/M7lc1UVf-VE'); await page.locator('#youtubeForm button').click();
     await page.locator('#detectedRoundList li').first().waitFor();
     assert.equal(await page.locator('#detectedRoundList li').count(), 2);
+    assert.match(await page.locator('#roundAnalysisStatus').textContent(), /rejected 1/);
     assert.deepEqual(requests, [{ action: 'start', videoId: 'M7lc1UVf-VE', duration: 600 }]);
     assert.equal(await page.locator('#detectedRoundList img').count(), 0);
     const first = page.locator('#detectedRoundList li').first();
@@ -41,6 +44,11 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
     await page.locator('#vodStatus').filter({ hasText: 'Reviews imported.' }).waitFor();
     assert.equal(await page.locator('#detectedRoundList li').count(), 2);
     await page.locator('#detectedRoundList li').first().getByRole('button', { name: /^Start / }).click(); assert.equal(await page.evaluate(() => window.__players.at(-1).time), 75, 'import must preserve an existing corrected boundary');
+    emptyResult = true; page.once('dialog', dialog => dialog.accept());
+    await page.locator('#analyzeRounds').click();
+    await page.locator('#roundAnalysisStatus').filter({ hasText: 'Existing markers were kept.' }).waitFor();
+    assert.equal(await page.locator('#detectedRoundList li').count(), 2, 'empty analysis must preserve earlier candidates');
+    assert.match(await page.locator('#roundList').innerText(), /Point 1/i, 'analysis must preserve custom points');
     await page.locator('.dock-trigger').click(); assert.match(await page.locator('.branch-link').first().evaluate(node => getComputedStyle(node).fontFamily), /Courier New/);
     assert.match(await page.locator('.dock-label').evaluate(node => getComputedStyle(node).fontFamily), /-apple-system/);
     await page.keyboard.press('Escape');

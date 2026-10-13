@@ -369,8 +369,8 @@
       if (result.status !== 'completed') throw new Error('Round analysis could not finish.');
       const rounds = core.validateDetectedRounds(result.rounds);
       if (rounds.some(item => item.end > duration)) throw new Error('Analysis returned timestamps outside this video.');
-      current.detectedRounds = rounds; save(); try { sessionStorage.removeItem(jobKey); } catch {}
-      $('roundAnalysisStatus').textContent = rounds.length ? 'Round timestamps detected. Check them before confirming.' : 'No complete live rounds detected.';
+      if (rounds.length) { current.detectedRounds = rounds; save(); } try { sessionStorage.removeItem(jobKey); } catch {}
+      $('roundAnalysisStatus').textContent = rounds.length ? (result.message || 'Round timestamps detected. Check them before confirming.') : 'No complete live rounds detected. Existing markers were kept.';
     } catch (error) {
       if (expected === token && error.name !== 'AbortError') {
         $('roundAnalysisStatus').textContent = error.message;

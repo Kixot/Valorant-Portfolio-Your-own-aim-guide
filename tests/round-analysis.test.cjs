@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { createService, normalize } = require('../server/round-analysis.cjs');
+const { createService, normalize, collectRounds } = require('../server/round-analysis.cjs');
 const env = { GEMINI_API_KEY: 'fake-key-for-offline-tests-only', GEMINI_FREE_TIER_ONLY: 'true' };
 const input = { action: 'start', videoId: 'M7lc1UVf-VE', duration: 600 };
 const rounds = [{ map: 1, round: 1, start: 71.5, end: 148.25, confidence: 'high', evidence: 'Barriers drop; round winner banner appears.' }, { map: 1, round: 2, start: 180, end: 235, confidence: 'low', evidence: 'Score changes after an obscured last elimination.' }];
@@ -25,7 +25,8 @@ test('starts one background video job, authenticates polling and parses actual i
   assert.deepEqual(result.rounds.map(item => [item.start, item.end]), [[71.5, 148.25], [180, 235]]);
   assert.equal(result.rounds[1].confirmed, false);
   const sent = JSON.parse(requests[0].options.body);
-  assert.equal(sent.background, true); assert.equal(sent.model, 'gemini-3.5-flash-lite'); assert.equal(sent.input[0].processing, undefined); assert.equal(sent.input[0].uri, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
+  assert.equal(sent.background, true); assert.equal(sent.model, 'gemini-3.5-flash-lite'); assert.deepEqual(sent.input[0].processing, { type: 'static' }); assert.equal(sent.input[0].resolution, 'low'); assert.equal(sent.input[0].uri, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
+  assert.equal(sent.response_format.schema.properties.rounds.items.properties.start.type, 'string');
   assert.match(sent.system_instruction, /never from regular time intervals/);
   assert.equal(JSON.stringify(sent).includes('note'), false);
   assert.equal((await service.run(input)).status, 'completed'); assert.equal(requests.length, 2);
@@ -82,4 +83,30 @@ test('signed jobs expire; failed requests still count against protective limits'
   const job = await service.run(input);
   await assert.rejects(service.run({ ...input, videoId: 'aqz-KE-bpKQ' }), /local analysis limit/);
   now = 1800001; await assert.rejects(service.run({ action: 'poll', job: job.job }), /expired/); assert.equal(calls, 1);
+});
+test('clock timestamps and explicit numbered metadata normalize without guessing units', () => {
+  const result = normalize({ rounds: [{ ...rounds[0], map: 'Map 1', round: 'Round 1', start: '01:03:10.125', end: '01:04:50.5', confidence: 'HIGH', evidence: ['Barriers drop.', 'Winner banner.'] }] }, 6237);
+  assert.equal(result[0].start, 3790.125); assert.equal(result[0].end, 3890.5); assert.equal(result[0].map, 1);
+  assert.equal(result[0].evidence, 'Barriers drop. Winner banner.');
+  assert.throws(() => normalize({ rounds: [{ ...rounds[0], start: '37:90' }] }, 6237));
+  assert.throws(() => normalize({ rounds: [{ ...rounds[0], end: 600.1 }] }, 600), /beyond the video/);
+});
+test('one bad entry does not discard usable rounds, with explicit discarded count', () => {
+  const result = collectRounds({ rounds: [rounds[0], { ...rounds[1], end: 900 }, { ...rounds[1], start: 'garbage' }] }, 600);
+  assert.equal(result.rounds.length, 1); assert.equal(result.discarded, 2);
+  assert.deepEqual([result.rounds[0].start, result.rounds[0].end], [71.5, 148.25]);
+  assert.throws(() => collectRounds({ rounds: [{ ...rounds[0], end: 900 }] }, 600), /1 outside the video/);
+});
+test('every member of conflicting identities or overlapping spans is rejected', () => {
+  const unrelated = { ...rounds[1], round: 5, start: 500, end: 550 };
+  const result = collectRounds({ rounds: [rounds[0], { ...rounds[1], start: 100, end: 160 }, unrelated] }, 600);
+  assert.equal(result.discarded, 2); assert.equal(result.rounds[0].round, 5);
+  const duplicated = collectRounds({ rounds: [rounds[0], rounds[0], unrelated] }, 600);
+  assert.equal(duplicated.discarded, 2); assert.equal(duplicated.rounds.length, 1);
+});
+test('completed partial results expose the warning and no new requests are submitted', async () => {
+  let calls = 0;
+  const service = createService({ env, fetcher: async () => { calls++; return response({ id: 'job_example', status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: JSON.stringify({ rounds: [rounds[0], { ...rounds[1], end: 900 }] }) }] }] }); } });
+  const result = await service.run(input); assert.equal(result.status, 'completed'); assert.equal(result.discarded, 1); assert.match(result.message, /rejected 1/);
+  await service.run(input); assert.equal(calls, 1);
 });
