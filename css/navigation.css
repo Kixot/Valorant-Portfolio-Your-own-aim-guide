@@ -1,0 +1,37 @@
+/* FolderFloat proportions and BranchedMenu path geometry, adapted to vanilla. */
+.site-dock { position: fixed; left: 22px; top: 26px; z-index: 150; width: 210px; pointer-events: none; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif; }
+.site-dock button, .site-dock a { font-family: inherit; }
+.dock-folder { position: relative; width: 96px; height: 71px; pointer-events: auto; transition: transform 520ms cubic-bezier(.23,1,.32,1); }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .site-dock .dock-folder:hover { transform: translateY(-2px) scale(1.015); }
+}
+.site-dock.is-open::after { content: ''; position: absolute; left: 0; top: 64px; width: 210px; height: 26px; pointer-events: auto; }
+.dock-back { position: absolute; inset: 0; border-radius: 7px; background: #151515; border: 1px solid #333; transform: perspective(600px) rotateX(8deg); transform-origin: bottom; }
+.dock-back::before { content: ''; position: absolute; left: 0; top: -7px; width: 42%; height: 14px; background: inherit; border-radius: 7px 7px 0 0; }
+.dock-paper { position: absolute; top: 10%; left: 8%; right: 8%; height: 50%; background: #181818; border: 1px solid #333; border-radius: 3px; opacity: 0; transform: translateY(10px); transition: opacity 320ms, transform 520ms cubic-bezier(.23,1,.32,1); }
+.dock-face { position: absolute; inset: 24% 0 0; border-radius: 7px; background: linear-gradient(180deg,#252525 0%,#0b0b0b 60%); border: 1px solid #333; transform: perspective(600px) rotateX(-16deg); transform-origin: bottom; transition: transform 520ms cubic-bezier(.23,1,.32,1); }
+.dock-label { position: absolute; left: 10px; bottom: 10px; color: #fff; font-size: 11px; font-weight: 500; letter-spacing: .04em; }
+.dock-trigger { position: absolute; inset: 0; border: 0; border-radius: 7px; background: transparent; cursor: pointer; z-index: 3; }
+.site-dock.is-open .dock-face { transform: perspective(600px) rotateX(-34deg); }
+.site-dock.is-open .dock-paper { opacity: 1; transform: translateY(0); }
+.branch-menu { position: absolute; top: 84px; left: 0; width: 210px; padding: 6px 12px 10px; background: #0003; pointer-events: auto; font-family: 'Courier New', Courier, ui-monospace, monospace; transform-origin: top left; }
+.site-dock.is-open .branch-menu { animation: branch-pop 260ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes branch-pop {
+  0% { opacity: 0; transform: translateY(-5px) scale(.94); }
+  70% { opacity: 1; transform: translateY(0) scale(1.025); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.branch-menu::before { content: ''; position: absolute; top: 6px; bottom: 12px; left: 0; width: 2px; background: linear-gradient(#444 70%,transparent); }
+.branch-marker { position: absolute; top: 0; left: 0; width: 2px; height: 16px; background: #fff; transition: transform 220ms cubic-bezier(.23,1,.32,1); }
+.branch-heading { display: block; width: 100%; text-align: left; padding: 7px 0; color: #aaa; font-size: 14px; line-height: 18px; border: 0; background: transparent; cursor: pointer; }
+.branch-heading:hover, .branch-heading:focus-visible { color: #fff; }
+.branch-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 300ms ease; }
+.branch-section.is-expanded .branch-body { grid-template-rows: 1fr; }
+.branch-inner { position: relative; overflow: hidden; min-height: 0; padding-block: 0; }
+.branch-section.is-expanded .branch-inner { padding-block: 6px; }
+.branch-lines { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+.branch-lines path { fill: none; stroke: #3f3f46; stroke-width: 1.5; stroke-linecap: round; }
+.branch-lines .branch-reach { stroke: #fff; transition: stroke-dashoffset 400ms cubic-bezier(.23,1,.32,1); }
+.branch-link { display: flex; align-items: center; height: 32px; padding-left: 40px; color: #999; text-decoration: none; white-space: nowrap; font-size: 13px; }
+.branch-link:hover, .branch-link.is-active, .branch-link[aria-current="page"] { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .site-dock *, .site-dock *::before { transition: none !important; animation: none !important; } }

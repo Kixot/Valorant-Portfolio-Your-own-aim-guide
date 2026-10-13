@@ -1,0 +1,67 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+(async () => {
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), errors = [], posts = [];
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(page);
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => { if (request.method() === 'POST') posts.push(request.url()); });
+    await page.route('**/api/analyze-rounds', route => route.fulfill({ json: { configured: false } }));
+    await page.goto(process.env.SITE_TEST_URL + '/vod.html');
+    const bytes = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas'); canvas.width = 1920; canvas.height = 1080;
+      const ctx = canvas.getContext('2d'), stream = canvas.captureStream(10), chunks = [];
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      recorder.ondataavailable = event => chunks.push(event.data);
+      const done = new Promise(resolve => { recorder.onstop = async () => resolve(Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()))); });
+      const started = performance.now();
+      const paint = () => {
+        const time = (performance.now() - started) / 1000;
+        ctx.fillStyle = '#151515'; ctx.fillRect(0, 0, 1920, 1080); ctx.fillStyle = '#fff'; ctx.font = '44px Arial'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+        const boxes = window.KixotHudAnalysis.defaults;
+        const labels = { left: time >= 6.4 ? '1' : '0', timer: time < 2.4 || time >= 6.4 ? '0:30' : '1:' + String(40 - Math.floor(time - 2.4)).padStart(2, '0'), right: '0' };
+        for (const [key, box] of Object.entries(boxes)) ctx.fillText(labels[key], (box.x + box.width / 2) * 1920, (box.y + box.height / 2) * 1080);
+      };
+      paint(); recorder.start(); const timer = setInterval(paint, 100);
+      await new Promise(resolve => setTimeout(resolve, 12000)); clearInterval(timer); recorder.stop(); stream.getTracks().forEach(track => track.stop()); return done;
+    });
+    await page.locator('#localFile').setInputFiles({ name: 'generated-hud.webm', mimeType: 'video/webm', buffer: Buffer.from(bytes) });
+    await page.waitForFunction(() => document.querySelector('#vodStatus').textContent === 'Video ready.');
+    assert.equal(await page.locator('#localAnalyzer').inputValue(), 'device');
+    assert.equal(await page.locator('#localPlayer').evaluate(video => video.paused && video.currentTime === 0), true);
+    const scanStarted = Date.now(); await page.locator('#analyzeRounds').click();
+    await page.waitForFunction(() => !document.querySelector('#analyzeRounds').disabled, null, { timeout: 180000 });
+    const scanSeconds = (Date.now() - scanStarted) / 1000;
+    const status = await page.locator('#roundAnalysisStatus').textContent();
+    assert.match(status, /HUD boundaries detected/, status);
+    const review = await page.evaluate(() => JSON.parse(localStorage.getItem([...Object.keys(localStorage)].find(key => key.startsWith('kixot_vod_v1:')))));
+    assert.equal(review.detectedRounds.length, 1);
+    const detected = review.detectedRounds[0];
+    assert.ok(Math.abs(detected.start - 2.4) < .5, JSON.stringify(detected)); assert.ok(Math.abs(detected.end - 6.4) < .5, JSON.stringify(detected));
+    assert.deepEqual(posts, [], 'on-device analysis must not upload frames or recordings');
+    await page.locator('#detectedRoundList button').filter({ hasText: /^Start/ }).click();
+    assert.ok(Math.abs(await page.locator('#localPlayer').evaluate(video => video.currentTime) - detected.start) < .01);
+    await page.locator('#hudOptions summary').click(); await page.locator('#hudX').fill('40');
+    await page.setViewportSize({ width: 390, height: 844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    const artifacts = require('./browser-fixtures.cjs').artifacts; fs.mkdirSync(artifacts, { recursive: true }); await page.screenshot({ path: artifacts + '/vod-hud-390.png', fullPage: true });
+    await page.setViewportSize({ width: 1440, height: 1000 }); await page.screenshot({ path: artifacts + '/vod-hud-desktop.png', fullPage: true });
+    await page.locator('#resetHud').click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#analyzeRounds').click(); await page.locator('#cancelRoundAnalysis').click();
+    const stopped = await page.locator('#roundAnalysisStatus').textContent(); await page.waitForTimeout(1200); assert.equal(await page.locator('#roundAnalysisStatus').textContent(), stopped);
+    assert.equal(await page.locator('#detectedRoundList li').count(), 1); assert.deepEqual(errors, []);
+    const blocked = await browser.newPage(); const blockedErrors = []; blocked.on('pageerror', error => blockedErrors.push(error.message));
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(blocked);
+    await blocked.route('**/tesseract.min.js', route => route.abort('blockedbyclient'));
+    await blocked.goto(process.env.SITE_TEST_URL + '/vod.html');
+    await blocked.locator('#localFile').setInputFiles({ name: 'generated-hud.webm', mimeType: 'video/webm', buffer: Buffer.from(bytes) });
+    await blocked.waitForFunction(() => document.querySelector('#vodStatus').textContent === 'Video ready.');
+    await blocked.locator('#markRound').click(); await blocked.locator('#analyzeRounds').click();
+    await blocked.waitForFunction(() => !document.querySelector('#analyzeRounds').disabled);
+    assert.match(await blocked.locator('#roundAnalysisStatus').textContent(), /reader could not load/);
+    assert.equal(await blocked.locator('#roundList li').count(), 1); assert.deepEqual(blockedErrors, []);
+    console.log('Real browser OCR, WebM duration, seeking, no uploads, cancellation, blocked reader and mobile crop settings passed. First 12-second test scan took ' + scanSeconds.toFixed(1) + ' seconds including reader setup.');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

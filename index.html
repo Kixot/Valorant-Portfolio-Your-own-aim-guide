@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kixot | Valorant, The Dojo & VOD Review</title>
+  <meta name="description" content="Kixot&#x27;s Valorant portfolio, training Dojo and VOD review." />
+  <link rel="canonical" href="https://www.kixotgg.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Kixot | Valorant, The Dojo & VOD Review" />
+  <meta property="og:description" content="Kixot&#x27;s Valorant portfolio, training Dojo and VOD review." />
+  <meta property="og:url" content="https://www.kixotgg.com/" />
+  <meta property="og:image" content="https://www.kixotgg.com/assets/img/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Kixot wordmark on a black background" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Kixot | Valorant, The Dojo & VOD Review" />
+  <meta name="twitter:description" content="Kixot&#x27;s Valorant portfolio, training Dojo and VOD review." />
+  <meta name="twitter:image" content="https://www.kixotgg.com/assets/img/og.png" />
+  <meta name="theme-color" content="#000000" />
+  <!-- social card: assets/img/og.png is a 1200x630 capture of the hero with the dock hidden -->
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23000000'/%3E%3Ccircle cx='60' cy='60' r='44' fill='none' stroke='%23ffffff' stroke-width='6'/%3E%3Ccircle cx='60' cy='60' r='9' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.cdnfonts.com" />
+  <!-- the official vanta.js net background lives on these two, so warm the sockets up front -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <!-- outfit + inter are self-hosted (latin variable subset) so the first paint gets the
+       real face instantly instead of waiting on a late swap. preload both, top priority. -->
+  <link rel="preload" href="assets/fonts/crete-round-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link href="https://fonts.cdnfonts.com/css/retroica" rel="stylesheet" media="print" onload="this.media='all'" />
+  <noscript><link href="https://fonts.cdnfonts.com/css/retroica" rel="stylesheet" /></noscript>
+  <link rel="stylesheet" href="css/site.css" />
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/navigation.css" />
+</head>
+<body>
+
+  <div id="cur" aria-hidden="true"></div>
+  <div class="net-bg" id="netBg" aria-hidden="true"></div>
+  <div class="net-css-fallback" aria-hidden="true"></div>
+
+  <div class="page">
+
+  <header>
+  <nav class="ff" aria-label="Site">
+    <div class="ff__folder">
+      <div class="ff__back"></div>
+      <button type="button" class="ff__front" aria-label="Open site menu" aria-expanded="false" aria-controls="siteMenu"><span class="ff__label">Kixot</span></button>
+      <div class="ff__items" id="siteMenu">
+        <a class="ff__item is-active" href="#top" data-section="top">home</a>
+        <a class="ff__item" href="#about" data-section="about">about</a>
+        <a class="ff__item" href="#dojo" data-section="dojo">dojo</a>
+        <a class="ff__item" href="#vod" data-section="vod">vod review</a>
+        <a class="ff__item ff__item--cta" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">subs</a>
+      </div>
+    </div>
+  </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="hero">
+      <div class="hero__content">
+        <p class="hero__kicker">insane · <span class="accent">valorant</span> · player</p>
+        <div role="heading" aria-level="1" class="hero__title hero__title--tech" id="heroTitle" aria-label="kixot"><canvas id="techCanvas"></canvas></div>
+        <p class="hero__tagline">
+          insane · <span class="rot-box"><span id="rotWord">clutcher</span></span>
+        </p>
+        <div class="hero__actions">
+          <a href="https://www.youtube.com/kixot" target="_blank" rel="noopener" class="rbtn rbtn--solid">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8ZM9.6 15.6V8.4L15.8 12l-6.2 3.6Z"/></svg>
+            Watch the climb
+          </a>
+          <a href="#dojo" class="rbtn">The Dojo</a>
+          <a href="#vod" class="rbtn">VOD Review</a>
+        </div>
+      </div>
+
+      <!-- floats live here and only here: rank icons, popping in while the hero is on screen.
+           self-hosted + low priority so they never compete with the first paint. -->
+      <div class="hero-floats" id="heroFloats" aria-hidden="true">
+        <img class="fl fl-rank" style="left:5%;   top:16%; animation-delay:0.05s,0.1s;" src="assets/img/rank-5.png" alt="" width="44" height="44" fetchpriority="low" decoding="async" />
+        <img class="fl fl-rank fl-m" style="left:11%;  top:64%; animation-delay:0.1s,0.2s;" src="assets/img/rank-14.png" alt="" width="44" height="44" fetchpriority="low" decoding="async" />
+        <img class="fl fl-rank fl-m" style="left:22%;  top:7%;  animation-delay:0.15s,0.3s;" src="assets/img/rank-20.png" alt="" width="44" height="44" fetchpriority="low" decoding="async" />
+        <img class="fl fl-rank fl-m" style="right:21%; top:8%;  animation-delay:0.2s,0.4s;" src="assets/img/rank-23.png" alt="" width="44" height="44" fetchpriority="low" decoding="async" />
+        <img class="fl fl-rank" style="right:5%;  top:36%; animation-delay:0.25s,0.5s;" src="assets/img/rank-26.png" alt="" width="44" height="44" fetchpriority="low" decoding="async" />
+        <img class="fl fl-rank" style="right:12%; top:76%; animation-delay:0.3s,0.6s;" src="assets/img/rank-27.png" alt="" width="44" height="44" fetchpriority="low" decoding="async" />
+      </div>
+    </section>
+
+    <div class="carousel" aria-hidden="true">
+      <div class="carousel__track" id="carouselTrack">
+        <div class="carousel__card is-accent">too ez</div>
+        <div class="carousel__card">insane</div>
+        <div class="carousel__card is-accent">competitive</div>
+        <div class="carousel__card">smokes diff</div>
+        <div class="carousel__card is-accent">clutcher</div>
+      </div>
+    </div>
+
+    <section class="section" id="about">
+      <div class="section__head reveal">
+        <h2 class="section__title lower">kixot in<span class="accent"> a nutshell.</span></h2>
+      </div>
+      <div class="spot reveal">
+        <p class="about__lead">
+          I <span class="u">MAINLY main controller...</span> but also like to play senti (yea hehe),
+          but like you should know that its wayyy toooo EZZZZZ for me.
+        </p>
+        <ul class="about__chips">
+          <li>smoke diff</li>
+          <li>immortal</li>
+          <li>ez</li>
+          <li>tryhard</li>
+          <li>bad at the game</li>
+          <li>0 sleep</li>
+        </ul>
+        <div class="rank-row" title="the climb so far">
+          <img src="assets/img/tier-5.png" alt="Iron 3" title="iron 3 (we all started here)" width="96" height="96" loading="lazy" decoding="async" />
+          <img src="assets/img/tier-14.png" alt="Gold 3" title="gold 3 (dark times)" width="96" height="96" loading="lazy" decoding="async" />
+          <img src="assets/img/tier-20.png" alt="Diamond 3" title="diamond 3 (ego arc)" width="96" height="96" loading="lazy" decoding="async" />
+          <img src="assets/img/tier-23.png" alt="Ascendant 3" title="ascendant 3 (getting serious)" width="96" height="96" loading="lazy" decoding="async" />
+          <img class="is-me" src="assets/img/tier-26.png" alt="Immortal 3" title="me, currently. hmph." width="96" height="96" loading="lazy" decoding="async" />
+          <img src="assets/img/tier-27.png" alt="Radiant" title="the final boss" width="96" height="96" loading="lazy" decoding="async" style="filter:grayscale(1) brightness(0.7);"   />
+        </div>
+      </div>
+
+      <div class="spot reveal loadout">
+        <h3 class="loadout__title">Eliminators</h3>
+        <div class="gun-grid" id="gunGrid"></div>
+      </div>
+
+      <div class="spot reveal loadout">
+        <h3 class="loadout__title">People in the office</h3>
+        <div class="agent-grid" id="agentGrid"></div>
+      </div>
+    </section>
+
+    <section class="section" id="dojo">
+      <div class="section__head reveal">
+        <h2 class="section__title">THE <span class="accent">DOJO</span></h2>
+      </div>
+      <div class="range-cta spot reveal">
+        <p class="big">the <span class="accent">training</span> dojo</p>
+        <p class="desc">a range that roasts you lovingly..</p>
+        <div class="preview-actions">
+          <a class="rbtn rbtn--solid" href="dojo.html" data-nav>The Dojo</a>
+          <a class="rbtn" href="dojo.html?quick=1">Quick 30</a>
+        </div>
+      </div>
+      <p class="range-note">optimized for desktop</p>
+    </section>
+
+    <section class="section" id="vod">
+      <div class="section__head reveal">
+        <h2 class="section__title">VOD <span class="accent">REVIEW</span></h2>
+      </div>
+      <div class="range-cta spot reveal">
+        <p class="big">the <span class="accent">vod</span> review</p>
+        <p class="desc">rewatch the round. yes, even that one.</p>
+        <div class="preview-actions"><a class="rbtn rbtn--solid" href="vod.html" data-nav>VOD Review</a></div>
+      </div>
+      <p class="range-note">optimized for desktop</p>
+    </section>
+
+    <footer class="footer">
+      <img class="footer__emblem" src="assets/favicon.svg" alt="" width="56" height="56" />
+      <p class="footer__logo">KIX<span class="accent">OT</span></p>
+      <div class="footer__actions">
+        <a class="rbtn" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">YouTube</a>
+        <a class="rbtn" href="#dojo">The Dojo</a>
+        <a class="rbtn" href="#vod">VOD Review</a>
+        <a class="rbtn" href="https://tracker.gg/valorant/profile/riot/srk%20kixot%23don/overview?platform=pc&playlist=competitive&season=8102cd81-43a0-d0d7-bd59-47b8fe9bed1b" target="_blank" rel="noopener">tracker.gg</a>
+        <button class="copy-btn" id="copyRiot" data-copy="srk kixot#don" type="button">srk kixot#don</button>
+        <span class="copy-toast" id="copyToast">copied !!</span>
+      </div>
+    </footer>
+  </main>
+  </div>
+
+
+  <script src="js/analytics.js" defer></script>
+  <script src="js/shared.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+  <script src="js/home.js" defer></script>
+</body>
+</html>
