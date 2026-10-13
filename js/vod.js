@@ -5,6 +5,7 @@
   const prefix = 'kixot_vod_v1:';
   const youtubeSupported = ['http:', 'https:'].includes(location.protocol);
   const previewHelp = 'YouTube needs a web address. Double-click Preview.cmd in the site folder, then use the page it opens.';
+  const confirmAction = text => window.KixotCursor ? window.KixotCursor.withNativeCursor(() => window.confirm(text)) : window.confirm(text);
   $('localPreviewHelp').hidden = youtubeSupported;
   const reviews = new Map(), files = new Map(), damaged = new Set();
   let current = null, token = 0, objectUrl = null, youtube = null, loaded = false, apiPromise = null, playerTimer = null, localDuration = 0;
@@ -288,7 +289,7 @@
     if (automatic && current.source.type === 'file') return;
     const key = current.key, expected = token;
     if (automatic && (current.detectedRounds.length || analysisTried.has(key))) return;
-    if (!automatic && current.detectedRounds.length && !confirm('Replace the detected round timestamps? Your custom points stay saved.')) return;
+    if (!automatic && current.detectedRounds.length && !confirmAction('Replace the detected round timestamps? Your custom points stay saved.')) return;
     analysisTried.add(key);
     const task = new AbortController(); analysisTask = task; syncControls();
     const jobKey = 'kixot_round_job_v1:' + key;
@@ -384,7 +385,7 @@
   $('localAnalyzer').addEventListener('change', syncControls);
   $('cancelRoundAnalysis').addEventListener('click', () => { const device = current?.source.type === 'file' && $('localAnalyzer').value === 'device'; stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = device ? 'HUD scan stopped. Existing markers were kept.' : 'Stopped waiting. Analyze rounds resumes the saved job if available.'; });
   const deleteSaved = review => {
-    if (!confirm('Delete this saved review and all its tags?')) return;
+    if (!confirmAction('Delete this saved review and all its tags?')) return;
     try { localStorage.removeItem(prefix + review.key); damaged.delete(review.key); } catch { warning('Removed from this visit only. Browser storage could not delete the saved copy.'); }
     reviews.delete(review.key);
     if (current?.key === review.key) { token++; cleanPlayer(); current = null; try { sessionStorage.removeItem('kixot_vod_active_v1'); } catch {} }

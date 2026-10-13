@@ -44,11 +44,26 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
     await page.locator('#vodStatus').filter({ hasText: 'Reviews imported.' }).waitFor();
     assert.equal(await page.locator('#detectedRoundList li').count(), 2);
     await page.locator('#detectedRoundList li').first().getByRole('button', { name: /^Start / }).click(); assert.equal(await page.evaluate(() => window.__players.at(-1).time), 75, 'import must preserve an existing corrected boundary');
+    await page.evaluate(() => {
+      const nativeConfirm = window.confirm;
+      window.confirm = text => {
+        window.__dialogCursor = { native: !document.documentElement.classList.contains('cur-on'), customHidden: !document.querySelector('#cur').classList.contains('is-visible') };
+        return nativeConfirm(text);
+      };
+    });
     emptyResult = true; page.once('dialog', dialog => dialog.accept());
     await page.locator('#analyzeRounds').click();
     await page.locator('#roundAnalysisStatus').filter({ hasText: 'Existing markers were kept.' }).waitFor();
     assert.equal(await page.locator('#detectedRoundList li').count(), 2, 'empty analysis must preserve earlier candidates');
     assert.match(await page.locator('#roundList').innerText(), /Point 1/i, 'analysis must preserve custom points');
+    assert.deepEqual(await page.evaluate(() => window.__dialogCursor), { native: true, customHidden: true }, 'analysis confirmation must use a native cursor');
+    await page.locator('#analyzeRounds').hover();
+    await page.waitForFunction(() => document.documentElement.classList.contains('cur-on'));
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.waitForTimeout(80);
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('cur-on')), false, 'animation frames must not hide the native cursor while focus is elsewhere');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForFunction(() => document.querySelector('#cur').classList.contains('is-visible') && document.documentElement.classList.contains('cur-on'));
     await page.locator('.dock-trigger').click(); assert.match(await page.locator('.branch-link').first().evaluate(node => getComputedStyle(node).fontFamily), /Courier New/);
     assert.match(await page.locator('.dock-label').evaluate(node => getComputedStyle(node).fontFamily), /-apple-system/);
     await page.keyboard.press('Escape');

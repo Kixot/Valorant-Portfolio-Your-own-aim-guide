@@ -14,6 +14,7 @@
   });
   const interactive = 'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable="true"]';
   let frame = 0, x = 0, y = 0, positioned = false, hasPointer = false, activeTarget = null;
+  let focused = document.hasFocus(), nativeDialogs = 0;
   const enabled = () => fine.matches && !coarse.matches && !motion.matches;
   const nativePlayer = target => !!target?.closest?.('iframe, video, #hudPreview, select, textarea, input:not([type="range"]):not([type="button"]):not([type="submit"])');
   const hide = () => {
@@ -26,9 +27,9 @@
   };
   const draw = () => {
     frame = 0;
-    if (!cur || !enabled() || document.hidden || document.pointerLockElement) return;
+    if (!cur || !enabled() || !focused || nativeDialogs || document.hidden || document.pointerLockElement) { hide(); return; }
     const underPointer = document.elementFromPoint(x, y);
-    if (nativePlayer(underPointer)) { hide(); return; }
+    if (!underPointer || nativePlayer(underPointer)) { hide(); return; }
     selectTarget(underPointer);
     cur.style.transform = `translate3d(${x}px,${y}px,0)`;
     cur.classList.toggle('is-hover', !!activeTarget);
@@ -44,14 +45,22 @@
     activeTarget = next;
     cur?.classList.toggle('is-hover', !!activeTarget);
   };
+  const restore = () => {
+    if (!hasPointer || !enabled() || !focused || nativeDialogs || document.hidden || document.pointerLockElement) { hide(); return; }
+    if (!frame) frame = requestAnimationFrame(draw);
+  };
+  // Browser dialogs cannot paint the page's custom pointer. Give them the
+  // native cursor before opening, then recheck the pointer after they close.
+  window.KixotCursor = Object.freeze({ withNativeCursor(action) {
+    nativeDialogs++; hide();
+    try { return action(); } finally { nativeDialogs--; restore(); }
+  } });
   window.addEventListener('pointermove', (event) => {
+    if (event.pointerType !== 'touch') { x = event.clientX; y = event.clientY; hasPointer = true; }
     if (!cur || !enabled() || event.pointerType === 'touch' || document.pointerLockElement || nativePlayer(event.target)) {
       hide();
       return;
     }
-    x = event.clientX;
-    y = event.clientY;
-    hasPointer = true;
     selectTarget(event.target);
     // Snap immediately on entry. Subsequent frames use the latest real coordinates.
     if (!positioned) draw();
@@ -63,12 +72,21 @@
     if (positioned && !frame) frame = requestAnimationFrame(draw);
   }, { passive: true });
   document.addEventListener('focusin', event => { if (nativePlayer(event.target)) hide(); });
-  document.addEventListener('pointerdown', event => { if (nativePlayer(event.target)) hide(); }, { passive: true });
+  document.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'touch') { hide(); return; }
+    x = event.clientX; y = event.clientY; hasPointer = true;
+    if (nativePlayer(event.target)) hide(); else restore();
+  }, { passive: true });
+  // A click may remove a confirmation panel or disable its button. Recheck the
+  // element under the real pointer after all click handlers finish.
+  document.addEventListener('click', () => queueMicrotask(restore));
+  document.addEventListener('focusout', () => queueMicrotask(restore));
   document.addEventListener('pointerout', (event) => {
-    if (!event.relatedTarget) hide();
+    if (!event.relatedTarget) { hasPointer = false; hide(); }
     else selectTarget(event.relatedTarget);
   }, { passive: true });
-  window.addEventListener('blur', () => { hasPointer = false; hide(); });
+  window.addEventListener('blur', () => { focused = false; hide(); });
+  window.addEventListener('focus', () => { focused = true; restore(); });
   document.addEventListener('pointerlockchange', () => {
     hide();
     hasPointer = false;
@@ -91,6 +109,7 @@
   const syncVisibility = () => {
     document.body.classList.toggle('is-tab-hidden', document.hidden);
     hide();
+    if (!document.hidden) { focused = document.hasFocus(); restore(); }
   };
   document.addEventListener('visibilitychange', syncVisibility);
   syncVisibility();
