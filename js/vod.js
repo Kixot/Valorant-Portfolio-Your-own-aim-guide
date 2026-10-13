@@ -11,7 +11,6 @@
   let analysisTask = null;
   const analysisTried = new Set();
   const confirmLocalUpload = signal => new Promise(resolve => {
-    if (signal.aborted) { resolve(false); return; }
     const panel = $('localAnalysisConfirm'); panel.hidden = false;
     const finish = accepted => {
       panel.hidden = true; $('confirmLocalAnalysis').removeEventListener('click', accept); $('cancelLocalAnalysis').removeEventListener('click', decline); signal.removeEventListener('abort', decline); document.removeEventListener('keydown', escape); resolve(accepted);
@@ -24,7 +23,7 @@
   const message = text => { $('vodStatus').textContent = text; };
   const warning = text => { $('vodStorageStatus').textContent = text; };
   const element = (tag, text, className) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; };
-  const button = (text, action) => { const node = element('button', text, 'rbtn vod-mini'); node.type = 'button'; node.addEventListener('click', action); return node; };
+  const button = (text, action) => { const node = element('button', text, 'rbtn vod-mini'); node.type = 'button'; node.addEventListener('click', event => { action(event); requestAnimationFrame(() => node.blur()); }); return node; };
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
   const name = review => review.source.type === 'youtube' ? 'YouTube ' + review.source.videoId : review.source.name;
   const analytics = (event, params = {}) => window.KixotAnalytics?.track(event, { video_source: current?.source.type, ...params });
@@ -278,7 +277,7 @@
           const file = files.get(key);
           if (!file) throw new Error('Choose the matching recording before analyzing.');
           if (file.size > 2 * 1024 ** 3) throw new Error('Local analysis supports files smaller than 2 GB.');
-          if (!await confirmLocalUpload(task.signal)) { if (expected === token) $('roundAnalysisStatus').textContent = 'Upload canceled. The video stayed local.'; return; }
+          if (!await confirmLocalUpload(task.signal)) { $('roundAnalysisStatus').textContent = 'Upload canceled. The video stayed local.'; return; }
           $('roundAnalysisStatus').textContent = 'Uploading the selected video to Google.';
           fileToken = await window.KixotRoundAnalysis.upload(file, duration, task.signal);
           if (typeof fileToken !== 'string') throw new Error('The video upload did not return a valid reference.');
@@ -286,20 +285,21 @@
         }
       }
       $('roundAnalysisStatus').textContent = 'Analyzing gameplay and round transitions.';
-      let result = job ? await window.KixotRoundAnalysis.poll(job, task.signal) : fileToken ? await window.KixotRoundAnalysis.startFile(fileToken, task.signal) : await window.KixotRoundAnalysis.start(current.source.videoId, duration, task.signal);
       const started = performance.now();
+      const elapsed = () => core.stamp(Math.floor((performance.now() - started) / 1000));
+      let result = job ? await window.KixotRoundAnalysis.poll(job, task.signal) : fileToken ? await window.KixotRoundAnalysis.startFile(fileToken, task.signal) : await window.KixotRoundAnalysis.start(current.source.videoId, duration, task.signal);
       while (['processing', 'file_processing'].includes(result.status)) {
         if (expected !== token || current?.key !== key || task.signal.aborted) return;
         if (result.status === 'file_processing') {
           if (performance.now() - started > 1500000) throw new Error('Google is still preparing this file. Analyze local video checks it again.');
-          $('roundAnalysisStatus').textContent = 'Google is preparing the uploaded video. ' + core.stamp(Math.floor((performance.now() - started) / 1000)) + ' elapsed.';
+          $('roundAnalysisStatus').textContent = 'Google is preparing the uploaded video. ' + elapsed() + ' elapsed.';
           await wait(15000, task.signal);
           while (document.hidden) await wait(2000, task.signal);
           result = await window.KixotRoundAnalysis.startFile(fileToken, task.signal); continue;
         }
         if (typeof result.job !== 'string') throw new Error('Round analysis returned an invalid job.');
         job = result.job; try { sessionStorage.setItem(jobKey, job); } catch {}
-        $('roundAnalysisStatus').textContent = result.message || 'Analyzing gameplay and round transitions. ' + core.stamp(Math.floor((performance.now() - started) / 1000)) + ' elapsed.';
+        $('roundAnalysisStatus').textContent = result.message || 'Analyzing gameplay and round transitions. ' + elapsed() + ' elapsed.';
         if (performance.now() - started > 1500000) throw new Error('Analysis is taking longer than expected. Click Analyze rounds to check the saved job again.');
         await wait(Math.max(15, Math.min(60, Number(result.pollAfter) || 15)) * 1000, task.signal);
         while (document.hidden) await wait(2000, task.signal);
@@ -344,14 +344,14 @@
     if (!file.type.startsWith('video/') && !/\.(mp4|webm|ogv|mov|m4v)$/i.test(file.name)) { message('Choose a video file.'); $('localFile').value = ''; return; }
     select({ type: 'file', name: file.name, size: file.size, lastModified: file.lastModified }, file); $('localFile').value = '';
   });
-  $('markRound').addEventListener('click', () => {
+  $('markRound').addEventListener('click', event => {
     const value = adapter.currentTime(); if (value === null) { message('Load a playable video first.'); return; }
     if (current.rounds.length >= 1000) { message('Round limit reached. Export this review first.'); return; }
-    current.rounds.push({ id: uid(), time: value, label: 'Point ' + current.nextRound++ }); save(); message('Point marked.'); analytics('round_marked');
+    current.rounds.push({ id: uid(), time: value, label: 'Point ' + current.nextRound++ }); save(); message('Point marked. Click its timestamp later to jump back here.'); analytics('round_marked'); event.currentTarget.blur();
   });
-  $('tagMistake').addEventListener('click', () => {
+  $('tagMistake').addEventListener('click', event => {
     const value = adapter.currentTime(); if (value === null) return;
-    $('mistakeTime').value = Number(value.toFixed(3)); $('mistakeForm').hidden = false; $('mistakeNote').value = ''; $('mistakeType').focus();
+    $('mistakeTime').value = Number(value.toFixed(3)); $('mistakeForm').hidden = false; $('mistakeNote').value = ''; $('mistakeType').focus(); event.currentTarget.blur();
   });
   $('cancelMistake').addEventListener('click', () => { $('mistakeForm').hidden = true; });
   $('mistakeForm').addEventListener('submit', event => {

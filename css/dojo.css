@@ -9,6 +9,7 @@
 .launcher-mode:hover { border-color: var(--line-strong); color: #fff; }
 .launcher-mode.is-active, .training-page .mode-btn.is-active { color: #000; background: #fff; border-color: #fff; }
 .dojo-home { position: fixed; top: 26px; right: 24px; z-index: 100; padding: 10px 14px; font-size: 12px; background: #000; }
+.dojo-back { position: fixed; top: 26px; right: 150px; z-index: 100; padding: 10px 14px; font-size: 12px; background: #000; }
 .dojo-number, .dojo-select { min-width: 0; width: 100%; padding: 11px 12px; border: 1px solid var(--line-strong); background: #080808; color: #fff; font-size: 16px; }
 .dojo-select { width: auto; max-width: 100%; }
 .dojo-number:invalid { border-color: #fff; outline: 1px dashed #888; outline-offset: 3px; }

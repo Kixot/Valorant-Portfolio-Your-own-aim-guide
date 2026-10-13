@@ -2,6 +2,7 @@
 .site-dock { position: fixed; left: 22px; top: 26px; z-index: 150; width: 210px; pointer-events: none; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif; }
 .site-dock button, .site-dock a { font-family: inherit; }
 .dock-folder { position: relative; width: 96px; height: 71px; pointer-events: auto; transition: transform 520ms cubic-bezier(.23,1,.32,1); }
+.site-dock:not(.is-open) .dock-folder:hover { transform: translateY(-2px) scale(1.015); }
 .site-dock.is-open::after { content: ''; position: absolute; left: 0; top: 64px; width: 210px; height: 26px; pointer-events: auto; }
 .dock-back { position: absolute; inset: 0; border-radius: 7px; background: #151515; border: 1px solid #333; transform: perspective(600px) rotateX(8deg); transform-origin: bottom; }
 .dock-back::before { content: ''; position: absolute; left: 0; top: -7px; width: 42%; height: 14px; background: inherit; border-radius: 7px 7px 0 0; }

@@ -1,19 +1,5 @@
 # Validation
 
-## Latest refinements, 2026-10-12
-
-The mode chooser and in-range mode buttons use white selected states. Change mode and the extra settings heading were removed, leaving the main Dojo title. Homepage destinations read The Dojo and VOD Review. The Courier branch menu is 210px wide with a reduced-motion-aware pop animation. Disabled interactive buttons retain the hover dot; the video upload confirmation is inline so native dialogs do not disrupt cursor position.
-
-Vercel Analytics 2.0.1 is installed and its vanilla SDK is included without a framework or build step. Its popup and footer control were removed. Isolated production-origin checks verified one SDK script and query/fragment sanitization. Local previews send no Vercel page views. Actual Vercel collection is not verified because this change has not been deployed with Analytics enabled. Optional GA4 remains unconfigured.
-
-Twenty-one Node tests passed, including streamed uploads, signed references, bounds, safe destinations, quota stops, and preservation of accepted jobs during temporary Google errors. Browser checks passed for a full 30-second drill, pause/resume/fullscreen, white mode selection, review CRUD/seeking/restore, blocked storage, point seeking, upload confirmation/cancel, file analysis fixtures, cursor, pop animation, reduced motion and widths 360/390/768/1440. The local-analysis screenshot uses Mozilla's public flower clip and explicitly fake round results for UI validation, not actual gameplay detections.
-
-Real Gemini key verification succeeded. Google accepted a background job for wX7SJF9xoCM but repeatedly returned temporary high-demand 503 errors while checking it, including a five-minute bounded check. No real round timestamps or completion-time guarantee were established. The updated reviewer preserves and rechecks an accepted job instead of resubmitting the video; quota errors stop immediately.
-
-A real resumable upload through an isolated copy of the Node handler succeeded with Mozilla's public test clip. Google's metadata showed PROCESSING and the generic display name Gameplay recording. The disposable uploaded file was deleted after the check. No user recording was uploaded during testing. Local analysis stays manual and requires confirmation; ordinary playback uploads nothing. Google excludes unlisted YouTube URLs, so the original recording is required for those videos. Hosting request-size limits can be lower than the local 2 GB cap.
-
-Changed files include dojo.html, index.html, vod.html; css/dojo.css, css/navigation.css, css/shared.css; js/training.js, js/navigation.js, js/shared.js, js/vod.js, js/round-analysis-client.js, js/analytics.js; server/round-analysis.cjs, server/local-video.cjs, server/preview.cjs; tools/preview.ps1; package.json, package-lock.json, assets/vendor; tests and setup documentation.
-
 Checked locally on 2026-10-12, using Chrome and the in-app browser. No deployment was made. Backup commit before this work: `d571929`.
 
 ## YouTube
