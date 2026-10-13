@@ -25,7 +25,7 @@ test('starts one background video job, authenticates polling and parses actual i
   assert.deepEqual(result.rounds.map(item => [item.start, item.end]), [[71.5, 148.25], [180, 235]]);
   assert.equal(result.rounds[1].confirmed, false);
   const sent = JSON.parse(requests[0].options.body);
-  assert.equal(sent.background, true); assert.equal(sent.input[0].processing, 'agentic'); assert.equal(sent.input[0].uri, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
+  assert.equal(sent.background, true); assert.equal(sent.model, 'gemini-3.5-flash-lite'); assert.equal(sent.input[0].processing, undefined); assert.equal(sent.input[0].uri, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
   assert.match(sent.system_instruction, /never from regular time intervals/);
   assert.equal(JSON.stringify(sent).includes('note'), false);
   assert.equal((await service.run(input)).status, 'completed'); assert.equal(requests.length, 2);
@@ -56,8 +56,14 @@ test('quota errors while polling stop immediately and failed busy jobs are not r
     let calls = 0;
     const service = createService({ env, fetcher: async (url, options) => { calls++; return options.method === 'POST' ? response({ id: 'job_example', status: 'in_progress' }) : failure; } });
     const started = await service.run(input);
-    await assert.rejects(service.run({ action: 'poll', job: started.job }), /no paid fallback|stopped this job/);
+    await assert.rejects(service.run({ action: 'poll', job: started.job }), /no paid fallback|stopped this job/i);
     assert.equal(calls, 2);
+  }
+});
+test('background error arrays distinguish quota exhaustion from video processor failures', async () => {
+  for (const [code, status] of [['RESOURCE_EXHAUSTED', 429], ['INTERNAL', 502]]) {
+    const service = createService({ env, fetcher: async () => response({ id: 'job_example', status: 'failed', errors: [{ code, message: 'Provider failure' }] }) });
+    await assert.rejects(service.run(input), error => error.status === status);
   }
 });
 test('malformed sources, duration limits and unavailable output do not generate markers', async () => {

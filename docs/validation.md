@@ -29,7 +29,7 @@ Every main page fits 360, 390, 768 and 1440px without document overflow. YouTube
 
 A complete 30-second touch-mode drill passed, including ESC pause/resume. Mode choice remains locked through countdown, exercise and pause. No automatic mode timer remains. Progress is hidden during the exercise and restored after completion. Fullscreen keeps the plus/dot cursor visible in the active range.
 
-DPI is restored next to in-game sensitivity. Both settings persist locally and are locked during a drill. DPI records the real mouse hardware setting; it is not multiplied again into already-raw movement counts. The original exact 0.07 yaw remains. Browsers without unadjusted input show a warning; their physical sensitivity match cannot be guaranteed by the browser's movement units.
+DPI is restored next to in-game sensitivity. Both settings persist locally and can be edited during a drill. Mode and difficulty stay locked until the drill ends. DPI records the real mouse hardware setting; it is not multiplied again into already-raw movement counts. The original exact 0.07 yaw remains. Browsers without unadjusted input show a warning; their physical sensitivity match cannot be guaranteed by the browser's movement units.
 
 The reported remaining YouTube failure occurred when opening vod.html directly as file://. That case now shows Preview.cmd instructions and sends no YouTube API/embed requests. The one-click Windows launcher serves the same files over loopback HTTP. Node adds the optional analysis endpoint; the built-in Windows static-only fallback needs no extra runtime. A direct-file browser check passed without JavaScript errors.
 
@@ -50,3 +50,11 @@ No site JavaScript page errors were captured. HTML/CSS/JS scans found no em dash
 ## Repeating checks
 
 Run `node --test tests/sensitivity.test.cjs tests/vod.test.cjs tests/static.test.cjs tests/round-analysis.test.cjs` for the dependency-free checks. Browser checks require Playwright available outside the site and a running local preview. No package installation is required by the production service; it uses Node 22+ built-ins. Set `SITE_TEST_URL` for the preview URL, `CHROME_PATH` for your Chrome executable and `SITE_TEST_VIDEO` to a short local MP4, then run `node tests/site-browser.cjs`, `node tests/dojo-browser.cjs`, `node tests/analysis-browser.cjs`, `node tests/youtube-browser.cjs`. The local-file check used Mozilla's public CC0 flower.mp4 sample. AI service tests use offline fixtures, not real model responses. Network-dependent video outcomes may change.
+
+## Controls and analyzer fixes, 2026-10-13
+
+Backup commit: `1558709`. Back to Dojo and Back to home have matching dimensions at desktop and 360/390/768px. Both DPI and sensitivity accept edits during a full drill. The folder lifts 2px on hover and respects reduced motion. Pointer-clicked buttons release focus site-wide; keyboard activation retains focus. VOD Space toggles playback outside form controls. Saved points have Jump, Edit and Delete controls.
+
+The analysis stopwatch ticks every second during initial requests and busy polling, and stops after cancellation or failure. Quota-limited jobs are preserved; terminally invalid jobs are cleared so retry starts fresh. Google background error arrays are recognized. The new default is Gemini 3.5 Flash-Lite with standard video processing. Live text-only configuration checks accepted the simple round schema and rejected the older schema with extra constraints. Server validation still rejects invalid/overlapping timestamps.
+
+Passed: 22 dependency-free tests; targeted controls/timer/quota/retry/mobile tests with a synthetic local video; full 30-second Dojo test with live DPI/sens edits, ESC pause/resume and fullscreen cursor; round review seeking/editing/restore/import tests with offline model fixtures. Browser tools come from the existing bundled runtime, with no site dependency added.

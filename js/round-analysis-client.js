@@ -7,7 +7,7 @@
     try { response = await fetch(endpoint, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : {}, credentials: 'omit', cache: 'no-store', ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(35000)]) }); }
     catch (error) { if (error.name === 'AbortError') throw error; throw new Error('The round-analysis service could not connect.'); }
     let data; try { data = await response.json(); } catch { throw new Error('Round analysis is not connected. Open Preview.cmd or connect the hosted API.'); }
-    if (!response.ok) throw new Error(data.error || 'Round analysis could not finish.');
+    if (!response.ok) { const error = new Error(data.error || 'Round analysis could not finish.'); error.status = response.status; throw error; }
     return data;
   };
   const upload = async (file, duration, signal) => {

@@ -334,7 +334,7 @@
          player chooses another exercise after the current run ends. */
       const syncModeButtons = () => {
         const busy = playing || counting;
-        document.querySelectorAll('#rngDpi, #optDiffLive button, #btnQuick, #btnBackPlan').forEach(control => { control.disabled = busy; });
+        document.querySelectorAll('#optDiffLive button, #btnQuick, #btnBackPlan').forEach(control => { control.disabled = busy; });
         $('#myProgress').hidden = busy;
         document.querySelector('a[href="#myProgress"]').hidden = busy;
         document.querySelectorAll('.mode-btn').forEach((b) => {
@@ -1371,6 +1371,7 @@
           }
           if (playing || counting) pauseRun();
         }
+        if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
         if ((e.key === 'r' || e.key === 'R') && locked && !playing) start();
         /* fullscreen from inside a run, keyboard-first: F flips it without breaking the lock */
         if ((e.key === 'f' || e.key === 'F') && !e.repeat) {

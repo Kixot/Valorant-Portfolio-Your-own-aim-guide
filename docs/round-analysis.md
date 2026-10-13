@@ -18,7 +18,7 @@ Browser saves belong to their original web address. If moving from file:// or an
 
 ## Free-tier limits
 
-The model is fixed to `gemini-3.8-flash`, which Google currently lists with a free tier. Public YouTube input is currently a preview feature and its pricing and limits may change: [pricing](https://ai.google.dev/gemini-api/docs/pricing), [video input](https://ai.google.dev/gemini-api/docs/video-understanding).
+The model is fixed to `gemini-3.5-flash-lite`, which Google currently lists with free input/output video tokens. This replaces the failing 3.8 Flash agentic processor with standard video processing. It uses the existing private Google key. Public YouTube input is currently a preview feature and its pricing and limits may change: [pricing](https://ai.google.dev/gemini-api/docs/pricing), [video input](https://ai.google.dev/gemini-api/docs/video-understanding).
 
 There are no paid model fallbacks, automatic quota retries, search tools or billing upgrades. A provider 429 stops the operation. Each service process allows at most six starts and six hours of declared video duration per UTC day, plus three starts per client and a minute between new starts. Duplicate concurrent starts for the same video reuse the job; completed results are cached briefly. These in-memory limits reset on process restart and are not a global quota across scaled servers. A **billing-disabled Google project** is the actual protection against charges. Google's provider quotas remain authoritative.
 
@@ -28,7 +28,7 @@ Google does not provide a fixed completion estimate. The reviewer displays elaps
 
 Start is the beginning of the live round, when buy phase ends and barriers drop. End is the earliest visible round resolution, such as the last elimination, spike detonation/defuse or winner banner. Replays, desk segments, pauses, ads and halftime are excluded. Multiple maps are numbered chronologically. Incomplete or unobservable rounds should be omitted, rather than filled in using a regular pattern.
 
-The service uses Google's agentic video processing to inspect the timeline and refine proposed boundaries. It returns evidence and high/medium/low confidence. All detections begin unconfirmed, including high-confidence results. The UI provides Start, End, Edit, Delete and Confirm. Manual corrections and custom points stay in browser saves and exports.
+The service uses standard video processing with instructions to inspect HUD signals. It returns evidence and high/medium/low confidence. All detections begin unconfirmed, including high-confidence results. The UI provides Start, End, Edit, Delete and Confirm. Manual corrections and custom points stay in browser saves and exports. The timer updates every second, including while the initial request or a poll is pending. Background errors can appear in an `errors` array even with HTTP 200; these are checked explicitly. The provider receives a simple schema: live tests rejected the earlier schema with extra constraints. The server still enforces at most 300 rounds, numeric map/round indices, allowed confidence values, safe evidence and non-overlapping timestamps.
 
 The schema rejects malformed, duplicate, overlapping and out-of-range model results. This validates data consistency; it does **not** prove visual accuracy. No claim of frame-exact detection is made. Real match validation is still required after key configuration.
 

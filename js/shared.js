@@ -5,6 +5,13 @@
   const coarse = matchMedia('(any-pointer: coarse)');
   const cur = document.getElementById('cur');
   const root = document.documentElement;
+  // Pointer clicks release button focus so Space cannot repeat a completed action.
+  // Keyboard activation retains normal focus and accessibility.
+  document.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || event.detail === 0) return;
+    queueMicrotask(() => { if (document.activeElement === button) button.blur(); });
+  });
   const interactive = 'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable="true"]';
   let frame = 0, x = 0, y = 0, positioned = false, hasPointer = false, activeTarget = null;
   const enabled = () => fine.matches && !coarse.matches && !motion.matches;

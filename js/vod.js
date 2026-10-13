@@ -11,6 +11,7 @@
   let analysisTask = null;
   const analysisTried = new Set();
   const confirmLocalUpload = signal => new Promise(resolve => {
+    if (signal.aborted) { resolve(false); return; }
     const panel = $('localAnalysisConfirm'); panel.hidden = false;
     const finish = accepted => {
       panel.hidden = true; $('confirmLocalAnalysis').removeEventListener('click', accept); $('cancelLocalAnalysis').removeEventListener('click', decline); signal.removeEventListener('abort', decline); document.removeEventListener('keydown', escape); resolve(accepted);
@@ -23,7 +24,7 @@
   const message = text => { $('vodStatus').textContent = text; };
   const warning = text => { $('vodStorageStatus').textContent = text; };
   const element = (tag, text, className) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; };
-  const button = (text, action) => { const node = element('button', text, 'rbtn vod-mini'); node.type = 'button'; node.addEventListener('click', event => { action(event); requestAnimationFrame(() => node.blur()); }); return node; };
+  const button = (text, action) => { const node = element('button', text, 'rbtn vod-mini'); node.type = 'button'; node.addEventListener('click', action); return node; };
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
   const name = review => review.source.type === 'youtube' ? 'YouTube ' + review.source.videoId : review.source.name;
   const analytics = (event, params = {}) => window.KixotAnalytics?.track(event, { video_source: current?.source.type, ...params });
@@ -65,6 +66,15 @@
     },
     pause() { try { local.pause(); youtube?.pauseVideo?.(); } catch {} }
   };
+  document.addEventListener('keydown', event => {
+    if (event.code !== 'Space' || !loaded || event.target.closest('button, a, input, textarea, select, summary, [contenteditable="true"]')) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    try {
+      if (current.source.type === 'file') { if (local.paused) local.play()?.catch(() => message('Click the video to play.')); else local.pause(); }
+      else if (youtube.getPlayerState() === 1) youtube.pauseVideo(); else youtube.playVideo();
+    } catch { message('Click the video to play or pause.'); }
+  });
   const loadApi = () => {
     if (!youtubeSupported) return Promise.reject(new Error(previewHelp));
     if (window.YT?.Player) return Promise.resolve();
@@ -187,11 +197,12 @@
       const row = element('li', undefined, 'vod-entry');
       const heading = element('div', undefined, 'vod-entry-head');
       const seekLabel = core.stamp(item.time) + ' ' + (kind === 'round' ? item.label : item.type);
-      const seek = button(seekLabel, () => {
+      const jumpToPoint = () => {
         if (adapter.seek(item.time)) document.querySelector('.vod-player-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-      }); seek.classList.add('vod-seek'); seek.title = 'Jump to ' + core.stamp(item.time); seek.setAttribute('aria-label', 'Jump to ' + seekLabel);
+      };
+      const seek = button(seekLabel, jumpToPoint); seek.classList.add('vod-seek'); seek.title = 'Jump to ' + core.stamp(item.time); seek.setAttribute('aria-label', 'Jump to ' + seekLabel);
       const actions = element('div', undefined, 'vod-row-actions');
-      actions.append(button('Edit', () => editRow(item, kind, row)), button('Delete', () => { const index = items.indexOf(item); if (index >= 0) items.splice(index, 1); save(); message('Deleted.'); }));
+      actions.append(button('Jump', jumpToPoint), button('Edit', () => editRow(item, kind, row)), button('Delete', () => { const index = items.indexOf(item); if (index >= 0) items.splice(index, 1); save(); message('Deleted.'); }));
       heading.append(seek, actions); row.appendChild(heading);
       if (kind === 'mistake' && item.note) row.appendChild(element('p', item.note, 'vod-note'));
       host.appendChild(row);
@@ -260,8 +271,17 @@
     analysisTried.add(key);
     const task = new AbortController(); analysisTask = task; syncControls();
     const jobKey = 'kixot_round_job_v1:' + key;
+    const started = performance.now();
+    let phase = 'Checking round analysis.';
+    const updateElapsed = () => {
+      if (analysisTask === task && !task.signal.aborted && expected === token && current?.key === key)
+        $('roundAnalysisStatus').textContent = phase + ' ' + core.stamp(Math.floor((performance.now() - started) / 1000)) + ' elapsed.';
+    };
+    const setPhase = text => { phase = text; updateElapsed(); };
+    const elapsedTimer = setInterval(updateElapsed, 1000);
+    task.signal.addEventListener('abort', () => clearInterval(elapsedTimer), { once: true });
     try {
-      $('roundAnalysisStatus').textContent = 'Checking round analysis.';
+      updateElapsed();
       const info = await window.KixotRoundAnalysis.info(task.signal);
       if (!info.configured) throw new Error('Round analysis is not available yet.');
       if (current.source.type === 'file' && info.localUploads !== true) throw new Error('This preview is out of date. Open Preview.cmd again for local video analysis.');
@@ -277,29 +297,28 @@
           const file = files.get(key);
           if (!file) throw new Error('Choose the matching recording before analyzing.');
           if (file.size > 2 * 1024 ** 3) throw new Error('Local analysis supports files smaller than 2 GB.');
-          if (!await confirmLocalUpload(task.signal)) { $('roundAnalysisStatus').textContent = 'Upload canceled. The video stayed local.'; return; }
-          $('roundAnalysisStatus').textContent = 'Uploading the selected video to Google.';
+          setPhase('Waiting for your upload choice.');
+          if (!await confirmLocalUpload(task.signal)) { if (expected === token) $('roundAnalysisStatus').textContent = 'Upload canceled. The video stayed local.'; return; }
+          setPhase('Uploading the selected video to Google.');
           fileToken = await window.KixotRoundAnalysis.upload(file, duration, task.signal);
           if (typeof fileToken !== 'string') throw new Error('The video upload did not return a valid reference.');
           try { sessionStorage.setItem(uploadKey, fileToken); } catch {}
         }
       }
-      $('roundAnalysisStatus').textContent = 'Analyzing gameplay and round transitions.';
-      const started = performance.now();
-      const elapsed = () => core.stamp(Math.floor((performance.now() - started) / 1000));
+      setPhase('Analyzing gameplay and round transitions.');
       let result = job ? await window.KixotRoundAnalysis.poll(job, task.signal) : fileToken ? await window.KixotRoundAnalysis.startFile(fileToken, task.signal) : await window.KixotRoundAnalysis.start(current.source.videoId, duration, task.signal);
       while (['processing', 'file_processing'].includes(result.status)) {
         if (expected !== token || current?.key !== key || task.signal.aborted) return;
         if (result.status === 'file_processing') {
           if (performance.now() - started > 1500000) throw new Error('Google is still preparing this file. Analyze local video checks it again.');
-          $('roundAnalysisStatus').textContent = 'Google is preparing the uploaded video. ' + elapsed() + ' elapsed.';
+          setPhase('Google is preparing the uploaded video.');
           await wait(15000, task.signal);
           while (document.hidden) await wait(2000, task.signal);
           result = await window.KixotRoundAnalysis.startFile(fileToken, task.signal); continue;
         }
         if (typeof result.job !== 'string') throw new Error('Round analysis returned an invalid job.');
         job = result.job; try { sessionStorage.setItem(jobKey, job); } catch {}
-        $('roundAnalysisStatus').textContent = result.message || 'Analyzing gameplay and round transitions. ' + elapsed() + ' elapsed.';
+        setPhase(result.message || 'Analyzing gameplay and round transitions.');
         if (performance.now() - started > 1500000) throw new Error('Analysis is taking longer than expected. Click Analyze rounds to check the saved job again.');
         await wait(Math.max(15, Math.min(60, Number(result.pollAfter) || 15)) * 1000, task.signal);
         while (document.hidden) await wait(2000, task.signal);
@@ -312,8 +331,13 @@
       current.detectedRounds = rounds; save(); try { sessionStorage.removeItem(jobKey); } catch {}
       $('roundAnalysisStatus').textContent = rounds.length ? 'Round timestamps detected. Check them before confirming.' : 'No complete live rounds detected.';
     } catch (error) {
-      if (expected === token && error.name !== 'AbortError') { $('roundAnalysisStatus').textContent = error.message; if (/expired|could not establish|cannot access|stopped this job/.test(error.message)) try { sessionStorage.removeItem(jobKey); } catch {} if (/uploaded video expired/.test(error.message)) try { sessionStorage.removeItem('kixot_round_file_v1:' + key); } catch {} }
-    } finally { if (analysisTask === task) { analysisTask = null; syncControls(); } }
+      if (expected === token && error.name !== 'AbortError') {
+        $('roundAnalysisStatus').textContent = error.message;
+        // Failed jobs cannot recover. Keep quota-limited or temporarily busy jobs.
+        if ([400, 410, 422, 502].includes(error.status) || /expired|could not establish|cannot access|stopped this job|returned invalid|returned unreadable/.test(error.message)) try { sessionStorage.removeItem(jobKey); } catch {}
+        if (/uploaded video expired/.test(error.message)) try { sessionStorage.removeItem('kixot_round_file_v1:' + key); } catch {}
+      }
+    } finally { clearInterval(elapsedTimer); if (analysisTask === task) { analysisTask = null; syncControls(); } }
   };
   $('analyzeRounds').addEventListener('click', () => startAnalysis(false));
   $('cancelRoundAnalysis').addEventListener('click', () => { stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = 'Stopped waiting. Analyze rounds resumes the saved job if available.'; });
@@ -344,14 +368,14 @@
     if (!file.type.startsWith('video/') && !/\.(mp4|webm|ogv|mov|m4v)$/i.test(file.name)) { message('Choose a video file.'); $('localFile').value = ''; return; }
     select({ type: 'file', name: file.name, size: file.size, lastModified: file.lastModified }, file); $('localFile').value = '';
   });
-  $('markRound').addEventListener('click', event => {
+  $('markRound').addEventListener('click', () => {
     const value = adapter.currentTime(); if (value === null) { message('Load a playable video first.'); return; }
     if (current.rounds.length >= 1000) { message('Round limit reached. Export this review first.'); return; }
-    current.rounds.push({ id: uid(), time: value, label: 'Point ' + current.nextRound++ }); save(); message('Point marked. Click its timestamp later to jump back here.'); analytics('round_marked'); event.currentTarget.blur();
+    current.rounds.push({ id: uid(), time: value, label: 'Point ' + current.nextRound++ }); save(); message('Point marked. Use Jump to return to it.'); analytics('round_marked');
   });
-  $('tagMistake').addEventListener('click', event => {
+  $('tagMistake').addEventListener('click', () => {
     const value = adapter.currentTime(); if (value === null) return;
-    $('mistakeTime').value = Number(value.toFixed(3)); $('mistakeForm').hidden = false; $('mistakeNote').value = ''; $('mistakeType').focus(); event.currentTarget.blur();
+    $('mistakeTime').value = Number(value.toFixed(3)); $('mistakeForm').hidden = false; $('mistakeNote').value = ''; $('mistakeType').focus();
   });
   $('cancelMistake').addEventListener('click', () => { $('mistakeForm').hidden = true; });
   $('mistakeForm').addEventListener('submit', event => {
