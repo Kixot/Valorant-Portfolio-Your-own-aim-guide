@@ -41,3 +41,16 @@ The site's custom event allowlist is `dojo_opened`, `drill_started`, `drill_comp
 Riot IDs, personal names, notes, file names and video links are not event parameters. Page locations omit queries and fragments; page referrers are empty. Sharing and exported reviews are local actions and may contain the user's own notes and source information. Separately, the user can send a selected recording to Google for round analysis. GA's standard session and first-visit bookkeeping is managed by GA itself if configured.
 
 There is no analytics popup or footer control. Storage or analytics failures do not stop drills or reviews. Leave the GA4 ID empty if using only Vercel page-view analytics.
+
+## Google Search Console
+
+Search Console shows Google search impressions, clicks, queries and indexing. It is separate from GA4 visitor and drill reports. No visitor script or visible search box is needed.
+
+1. Open [Google Search Console](https://search.google.com/search-console) with your Google account. Add a **URL prefix** property for `https://www.kixotgg.com/`, matching the site's canonical address.
+2. Choose **HTML tag** under the verification options and copy its `google-site-verification` tag. This public token can be supplied to the site developer; it is not a password or API secret.
+3. In `index.html`, replace the token in the marked Google Search Console comment and uncomment that meta tag. Keep it in the homepage's `<head>` and keep it present after verification. Do not use an invented or placeholder token.
+4. Publish the homepage, then click **Verify** in Search Console. A local preview cannot verify the public website. This setup has not been verified for the live domain.
+5. Open **Sitemaps**, enter `sitemap.xml`, and click **Submit**. The repository already has a sitemap listing the homepage, Dojo and VOD Review, and `robots.txt` references it.
+6. Read **Performance > Search results** for search clicks, impressions and queries. Use URL inspection to check a page's indexing status. Submitting a sitemap does not guarantee indexing or ranking.
+
+A Domain property instead requires DNS verification through the domain provider; the homepage meta tag verifies URL-prefix properties only. See [Google's ownership verification instructions](https://support.google.com/webmasters/answer/9008080?hl=en) and [sitemap instructions](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap).
