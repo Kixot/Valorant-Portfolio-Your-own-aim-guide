@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(page);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    let phase = 'pending'; const actions = [];
+    let phase = 'pending', localUploads = true; const actions = [];
     await page.route('**/api/analyze-rounds', async route => {
-      if (route.request().method() === 'GET') return route.fulfill({ json: { configured: true, localUploads: true, maximumDuration: 7200 } });
+      if (route.request().method() === 'GET') return route.fulfill({ json: { configured: true, localUploads, maximumDuration: 7200 } });
       if (route.request().headers()['content-type'].startsWith('video/')) return route.fulfill({ json: { fileToken: 'test-file-token' } });
       actions.push(route.request().postDataJSON().action);
       await new Promise(resolve => setTimeout(resolve, 3500));
@@ -55,6 +56,10 @@ const assert = require('node:assert/strict');
     assert.equal(actions.at(-1), 'poll');
     phase = 'pending'; await page.locator('#analyzeRounds').click(); await page.waitForFunction(() => document.querySelector('#roundAnalysisStatus').textContent.includes('Provider is busy'));
     assert.equal(actions.at(-1), 'startFile', 'a terminally invalid job must be cleared before retrying'); await page.locator('#cancelRoundAnalysis').click();
+    localUploads = false; const priorActions = actions.length;
+    await page.locator('#analyzeRounds').click();
+    await page.waitForFunction(() => document.querySelector('#roundAnalysisStatus').textContent.includes('Choose On this device'));
+    assert.equal(actions.length, priorActions, 'unsupported hosting must not submit a video upload or analysis');
     const folder = page.locator('.dock-folder'); await folder.hover(); await page.waitForTimeout(600); assert.notEqual(await folder.evaluate(node => getComputedStyle(node).transform), 'none');
     await page.emulateMedia({ reducedMotion: 'reduce' }); assert.equal(await folder.evaluate(node => getComputedStyle(node).transform), 'none');
     await page.goto(process.env.SITE_TEST_URL + '/dojo.html?quick=1');

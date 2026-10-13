@@ -6,6 +6,7 @@ const fs = require('node:fs');
   const base = process.env.SITE_TEST_URL;
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(page);
     const errors = [], missing = [], failed = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('response', response => { if (response.url().startsWith(base) && response.status() >= 400) missing.push(response.url()); });
@@ -39,11 +40,11 @@ const fs = require('node:fs');
         }
       }
     }
-    fs.mkdirSync('docs/screenshots', { recursive: true });
-    await page.goto(base + '/index.html'); await page.screenshot({ path: 'docs/screenshots/audit-home-desktop.png' });
-    await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: 'docs/screenshots/audit-home-390.png' });
+    const artifacts = require('./browser-fixtures.cjs').artifacts; fs.mkdirSync(artifacts, { recursive: true });
+    await page.goto(base + '/index.html'); await page.screenshot({ path: artifacts + '/audit-home-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: artifacts + '/audit-home-390.png' });
     assert.deepEqual(errors, []); assert.deepEqual(missing, []);
-    fs.writeFileSync('docs/site-audit.json', JSON.stringify({ checked: ['Home and footer navigation', 'Quick launch', 'Plan mode selection', 'Keyboard menu', 'Header overlap', 'Local asset responses', 'Mobile overflow'], errors, missingLocalAssets: missing, failedRequests: failed }, null, 2));
+    fs.writeFileSync(artifacts + '/site-audit.json', JSON.stringify({ checked: ['Home and footer navigation', 'Quick launch', 'Plan mode selection', 'Keyboard menu', 'Header overlap', 'Local asset responses', 'Mobile overflow'], errors, missingLocalAssets: missing, failedRequests: failed }, null, 2));
     console.log('Homepage navigation, quick launch, preselected plan, keyboard menu, header spacing and all page layouts passed with no script errors or missing local assets.');
     if (failed.length) console.log(JSON.stringify({ failedRequests: failed }));
   } finally { await browser.close(); }

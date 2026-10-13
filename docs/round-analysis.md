@@ -46,7 +46,7 @@ Google AI (upload) remains an optional analyzer choice. It requires confirming t
 
 Google's YouTube URL integration currently supports public videos only, excluding unlisted and private videos. Use an original recording for an unlisted VOD. The site does not bypass YouTube access restrictions or download YouTube media. See [YouTube limitations](https://ai.google.dev/gemini-api/docs/video-understanding) and [Files API](https://ai.google.dev/gemini-api/docs/files).
 
-The local Node preview supports the streamed upload. Hosting platforms can impose smaller request-body and function-duration limits, so large uploads need a streaming Node host; the existing serverless wrapper is not a guarantee of 2 GB upload support. Uploads also have process-local limits: six uploads, 4 GB total and three per client per UTC day, with a minute between uploads. Google enforces its own free-tier quotas.
+The local Node preview supports the streamed upload. Hosting platforms can impose smaller request-body and function-duration limits, so large uploads need a streaming Node host. Google uploads are disabled when the Vercel environment is detected, and the reviewer directs visitors to On this device instead. Vercel's 4.5 MB request-body limit cannot carry a full VOD; the wrapper does not provide 2 GB upload support there. Public YouTube analysis is unaffected by this restriction. See [Vercel limits](https://vercel.com/docs/functions/limitations). Uploads also have process-local limits: six uploads, 4 GB total and three per client per UTC day, with a minute between uploads. Google enforces its own free-tier quotas.
 
 ## Hosting
 

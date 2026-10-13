@@ -14,6 +14,14 @@ test('unconfigured or unconfirmed free-tier setup makes no provider calls', asyn
   }
   assert.equal(calls, 0);
 });
+
+test('serverless upload restrictions keep local-device analysis available without provider requests', async () => {
+  let calls = 0;
+  const service = createService({ env: { ...env, VERCEL: '1' }, fetcher: async () => { calls++; } });
+  assert.equal(service.info().configured, true); assert.equal(service.info().localUploads, false);
+  await assert.rejects(service.upload({}, 'test'), /On this device/);
+  assert.equal(calls, 0);
+});
 test('starts one background video job, authenticates polling and parses actual irregular boundaries', async () => {
   const requests = [];
   const service = createService({ env, fetcher: async (url, options) => { requests.push({ url, options }); return response(options.method === 'POST' ? { id: 'job_example', status: 'in_progress' } : complete()); } });

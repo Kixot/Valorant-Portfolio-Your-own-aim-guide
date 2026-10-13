@@ -326,7 +326,7 @@
       }
       const info = await window.KixotRoundAnalysis.info(task.signal);
       if (!info.configured) throw new Error('Round analysis is not available yet.');
-      if (current.source.type === 'file' && info.localUploads !== true) throw new Error('This preview is out of date. Open Preview.cmd again for local video analysis.');
+      if (current.source.type === 'file' && info.localUploads !== true) throw new Error(info.localUploads === false ? 'Google uploads are unavailable on this host. Choose On this device to analyze this recording.' : 'This preview is out of date. Open Preview.cmd again for local video analysis.');
       const duration = adapter.duration();
       if (!Number.isFinite(duration) || duration <= 0) throw new Error('Wait for the video duration, then analyze again.');
       if (duration > info.maximumDuration) throw new Error('Round analysis supports videos up to two hours.');

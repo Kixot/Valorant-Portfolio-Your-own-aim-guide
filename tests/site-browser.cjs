@@ -62,7 +62,7 @@ const passed = [];
     await page.reload(); await ready(page); assert.match(await page.locator('#roundList').innerText(), /My marker/i); assert.match(await page.locator('#mistakeList').innerText(), /Edited/);
     await page.locator('#youtubeUrl').fill('https://youtube.com.evil.example/watch?v=M7lc1UVf-VE'); await page.locator('#youtubeForm button').click();
     assert.match(await page.locator('#vodStatus').innerText(), /valid video ID/); assert.match(await page.locator('#activeVideo').innerText(), /M7lc1UVf-VE/);
-    const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#exportReviewJson').click()]);
+    const [download] = await Promise.all([page.waitForEvent('download').catch(async error => { throw new Error(error.message + '\n' + JSON.stringify({ errors, status: await page.locator('#vodStatus').innerText(), disabled: await page.locator('#exportReviewJson').isDisabled() })); }), page.locator('#exportReviewJson').click()]);
     const exportText = fs.readFileSync(await download.path(), 'utf8'); assert.equal(JSON.parse(exportText).reviews[0].mistakes[0].note, 'Edited');
     await load(page, 'aqz-KE-bpKQ'); assert.match(await page.locator('#roundList').innerText(), /No custom points/);
     await page.locator('.vod-saved summary').click();

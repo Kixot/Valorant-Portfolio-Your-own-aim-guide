@@ -1,0 +1,21 @@
+# Upload only the site and the files required by the analysis function.
+/*
+!index.html
+!dojo.html
+!vod.html
+!training.html
+!pages/
+!css/
+!js/
+!assets/
+!api/
+!server/
+!package.json
+!package-lock.json
+!THIRD_PARTY_NOTICES.md
+!robots.txt
+!sitemap.xml
+!vercel.json
+server/preview.cjs
+**/.env
+**/.env.*

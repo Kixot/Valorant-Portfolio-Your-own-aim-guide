@@ -8,6 +8,7 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
   const base = process.env.SITE_TEST_URL || 'http://127.0.0.1:4188';
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(context);
     await context.route('https://www.youtube.com/iframe_api', route => route.fulfill({ contentType: 'text/javascript', body: fakeApi }));
     await context.route('https://www.youtube.com/embed/**', route => route.fulfill({ contentType: 'text/html', body: '<html>Player test</html>' }));
     const page = await context.newPage(), errors = [], requests = [];
@@ -70,6 +71,7 @@ const fakeApi = `window.__players=[];window.YT={Player:class{constructor(frame,c
     for (const width of [360, 390, 768]) { await page.setViewportSize({ width, height: 844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); }
     assert.deepEqual(errors, []); await context.close();
     const files = await browser.newContext(); const direct = await files.newPage(), directErrors = [], youtubeRequests = [];
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(files);
     direct.on('pageerror', error => directErrors.push(error.message)); direct.on('request', request => { if (request.url().includes('youtube.com')) youtubeRequests.push(request.url()); });
     await direct.goto(pathToFileURL(path.resolve('vod.html')).href);
     assert.equal(await direct.locator('#localPreviewHelp').isVisible(), true);

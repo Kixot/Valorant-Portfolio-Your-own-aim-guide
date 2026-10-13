@@ -122,8 +122,8 @@ function createService({ env = process.env, fetcher = fetch, now = Date.now } = 
       ...(result.discarded ? { message: 'Kept ' + result.rounds.length + ' candidate rounds; rejected ' + result.discarded + ' invalid or ambiguous entries. Review the remaining timestamps before confirming.' } : {}) };
   };
   return {
-    info: () => ({ service: 'kixot-analysis-v1', configured: configured(), localUploads: true, maximumDuration: 7200, model: MODEL, setupStamp: env.ANALYSIS_SETUP_STAMP || '0', codeStamp: env.ANALYSIS_CODE_STAMP || '0' }),
-    upload: (request, client) => localVideos.upload(request, client),
+    info: () => ({ service: 'kixot-analysis-v1', configured: configured(), localUploads: env.VERCEL !== '1', maximumDuration: 7200, model: MODEL, setupStamp: env.ANALYSIS_SETUP_STAMP || '0', codeStamp: env.ANALYSIS_CODE_STAMP || '0' }),
+    upload: (request, client) => env.VERCEL === '1' ? Promise.reject(new ServiceError(413, 'Google video uploads are unavailable on this host. Choose On this device to analyze a local recording.')) : localVideos.upload(request, client),
     async run(body, client = 'local') {
       if (!configured()) throw new ServiceError(503, 'Round analysis needs a server API key from a project with billing disabled.');
       if (!body || typeof body !== 'object') throw new ServiceError(400, 'Invalid analysis request.');

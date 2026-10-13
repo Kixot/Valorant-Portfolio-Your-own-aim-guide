@@ -4,6 +4,7 @@ const fs = require('node:fs');
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await require('./browser-fixtures.cjs').withoutGoogleAnalytics(page);
   const errors = [], requests = [], results = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => { if (request.url().includes('youtube.com/embed/')) requests.push({ url: request.url(), referrer: request.headers().referer }); });
@@ -27,10 +28,10 @@ const fs = require('node:fs');
       }
       results.push(result); console.log(JSON.stringify(result));
     }
-    fs.mkdirSync('docs/screenshots', { recursive: true });
-    fs.writeFileSync('docs/youtube-results.json', JSON.stringify({ results, errors, requests }, null, 2));
-    await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: 'docs/screenshots/vod-desktop.png' });
-    await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: 'docs/screenshots/vod-390.png', fullPage: true });
+    const artifacts = require('./browser-fixtures.cjs').artifacts; fs.mkdirSync(artifacts, { recursive: true });
+    fs.writeFileSync(artifacts + '/youtube-results.json', JSON.stringify({ results, errors, requests }, null, 2));
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: artifacts + '/vod-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: artifacts + '/vod-390.png', fullPage: true });
     console.log(JSON.stringify({ errors, requests }));
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

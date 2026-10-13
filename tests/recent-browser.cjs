@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(context);
     const page = await context.newPage(), errors = [], sent = []; let uploads = 0;
     page.on('pageerror', error => errors.push(error.message));
     await context.route('**/api/analyze-rounds', async route => {
@@ -35,7 +36,8 @@ const assert = require('node:assert/strict');
     await page.locator('.dock-trigger').click();
     assert.equal(await page.locator('.branch-menu').evaluate(node => getComputedStyle(node).animationName), 'branch-pop');
     assert.equal(await page.locator('.branch-menu').evaluate(node => getComputedStyle(node).width), '210px');
-    await page.screenshot({ path: 'docs/screenshots/vod-local-analysis.png', fullPage: false });
+    fs.mkdirSync(require('./browser-fixtures.cjs').artifacts, { recursive: true });
+    await page.screenshot({ path: require('./browser-fixtures.cjs').artifacts + '/vod-local-analysis.png', fullPage: false });
     await page.emulateMedia({ reducedMotion: 'reduce' }); assert.equal(await page.locator('.branch-menu').evaluate(node => getComputedStyle(node).animationName), 'none');
     for (const width of [360, 390, 768]) { await page.setViewportSize({ width, height: 844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); }
     assert.deepEqual(errors, []); await context.close();
@@ -49,6 +51,7 @@ const assert = require('node:assert/strict');
       if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return route.fulfill({ status: 404, body: '' });
       return route.fulfill({ contentType: file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html', body: fs.readFileSync(file) });
     });
+    await require('./browser-fixtures.cjs').withoutGoogleAnalytics(production);
     await prod.goto('https://www.kixotgg.com/vod.html'); await prod.waitForFunction(() => !!window.va);
     assert.equal(sdkRequests, 1); assert.equal(await prod.locator('.analytics-choice, .analytics-toggle').count(), 0);
     const sanitized = await prod.evaluate(() => window.vaq.find(entry => entry[0] === 'beforeSend')[1]({ type: 'pageview', url: 'https://www.kixotgg.com/vod.html?video=private#note' }));
