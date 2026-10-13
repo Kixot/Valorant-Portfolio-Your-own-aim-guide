@@ -8,6 +8,8 @@ const fs = require('node:fs');
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => { if (request.url().includes('youtube.com/embed/')) requests.push({ url: request.url(), referrer: request.headers().referer }); });
   try {
+    // Test real playback without spending analysis quota on demonstration videos.
+    await page.route('**/api/analyze-rounds', route => route.fulfill({ json: { configured: false } }));
     await page.goto((process.env.SITE_TEST_URL || 'http://127.0.0.1:4174') + '/vod.html');
 
     for (const id of ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ']) {

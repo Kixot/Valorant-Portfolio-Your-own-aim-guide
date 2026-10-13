@@ -1524,8 +1524,12 @@
         syncModeButtons();
       };
       const returnToModes = () => {
-        if (playing || counting) return;
+        if (playing || counting) {
+          pauseRun();
+          if (!confirm('Leave this drill? This unfinished run will not be saved.')) return;
+        }
         resetExercise();
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         hasPlan = false;
         ['stepSurvey', 'stepPlan', 'stepSettings', 'stepResults'].forEach(id => $('#' + id).classList.add('hidden'));
         $('#dojoLauncher').hidden = false;

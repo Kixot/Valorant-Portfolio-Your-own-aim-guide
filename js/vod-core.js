@@ -67,7 +67,7 @@
     '', 'My points', ...review.rounds.map(round => stamp(round.time) + ' ' + round.label), '', 'User tagged mistakes',
     ...review.mistakes.map(mistake => stamp(mistake.time) + ' ' + mistake.type + (mistake.note ? ': ' + mistake.note : '')),
     '', 'User tagged counts', ...TYPES.map(type => type + ': ' + review.mistakes.filter(item => item.type === type).length),
-    '', 'AI detected rounds (check timestamps)', ...(review.detectedRounds || []).map(item => stamp(item.start) + ' to ' + stamp(item.end) + ' Map ' + item.map + ' Round ' + item.round + (item.confirmed ? ' (confirmed)' : ' (' + item.confidence + ' confidence)'))].join('\n');
+    '', 'Detected rounds (check timestamps)', ...(review.detectedRounds || []).map(item => stamp(item.start) + ' to ' + stamp(item.end) + ' Map ' + item.map + ' Round ' + item.round + (item.confirmed ? ' (confirmed)' : ' (' + item.confidence + ' confidence)'))].join('\n');
   const api = Object.freeze({ TYPES, parseYouTube, time, stamp, key, validateReview, validateImport, validateDetectedRounds, reviewText });
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else scope.KixotVodCore = api;
 })(globalThis);

@@ -1,4 +1,8 @@
-# React Bits
+# Third-party software
+
+The optional on-device HUD reader loads [Tesseract.js](https://github.com/naptha/tesseract.js), pinned to 6.0.1, with its worker/core and English language data from jsDelivr. Tesseract.js is Apache-2.0 licensed; see the [upstream license](https://github.com/naptha/tesseract.js/blob/master/LICENSE). The site sends no video frames to the CDN. This runtime dependency does not require a framework or build step.
+
+## React Bits
 
 The site's vanilla folder and branched navigation use proportions, paths and motion inspired by [FolderFloat](https://reactbits.dev/micro/folder-float) and [BranchedMenu](https://reactbits.dev/micro/branched-menu). The header uses a smaller folder, site destinations, monochrome colors and no shadows. React and Matter.js are not included.
 

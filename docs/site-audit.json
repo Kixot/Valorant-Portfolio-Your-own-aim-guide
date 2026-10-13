@@ -1,0 +1,14 @@
+{
+  "checked": [
+    "Home and footer navigation",
+    "Quick launch",
+    "Plan mode selection",
+    "Keyboard menu",
+    "Header overlap",
+    "Local asset responses",
+    "Mobile overflow"
+  ],
+  "errors": [],
+  "missingLocalAssets": [],
+  "failedRequests": []
+}

@@ -29,6 +29,14 @@
 .vod-review-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .vod-round-label { margin-bottom: 12px; font-size: 12px; color: #bbb; }
 .vod-entries { list-style: none; padding: 0; }
+#localAnalyzerOptions { margin-bottom: 20px; }
+#localAnalyzer { margin-top: 8px; max-width: 340px; }
+#hudOptions { margin-top: 18px; }
+#hudOptions summary { cursor: pointer; font-size: 13px; }
+#hudOptions p { margin-block: 12px; }
+#hudPreview { display: block; width: 100%; margin-block: 12px; border: 1px solid #444; touch-action: none; cursor: crosshair; }
+.hud-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.hud-fields label { display: grid; gap: 6px; }
 .vod-entry { padding: 16px 0; border-bottom: 1px solid #222; }
 .vod-entry:last-child { border: 0; }
 .vod-entry-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-wrap: wrap; }
@@ -58,6 +66,7 @@
 #manualShare .rbtn { margin-top: 12px; }
 @media (max-width: 768px) { .vod-review-grid, .vod-count-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 560px) {
+  .hud-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vod-page .section { padding-inline: 18px; }
   .vod-source-form { grid-template-columns: minmax(0, 1fr); }
   .vod-player-card { padding: 12px; }

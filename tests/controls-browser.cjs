@@ -25,8 +25,7 @@ const assert = require('node:assert/strict');
     });
     await page.locator('#localFile').setInputFiles({ name: 'test.webm', mimeType: 'video/webm', buffer: Buffer.from(bytes) });
     await page.waitForFunction(() => document.querySelector('#vodStatus').textContent === 'Video ready.');
-    // MediaRecorder recordings lack duration metadata; the fixture has exactly 4.5 seconds.
-    await page.locator('#localPlayer').evaluate(video => Object.defineProperty(video, 'duration', { value: 4.5, configurable: true }));
+    assert.equal(await page.locator('#localPlayer').evaluate(video => video.currentTime), 0, 'duration discovery must restore the first frame');
     await page.locator('#localPlayer').evaluate(video => { video.currentTime = 1; });
     await page.locator('#markRound').click();
     assert.equal(await page.locator('#markRound').evaluate(node => node === document.activeElement), false);
@@ -36,6 +35,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#localPlayer').evaluate(video => video.currentTime), 1);
     await page.locator('#tagMistake').click(); assert.equal(await page.locator('#mistakeType').evaluate(node => node === document.activeElement), true);
     await page.locator('#cancelMistake').click(); await page.keyboard.press('Space'); assert.equal(await page.locator('#mistakeForm').isVisible(), false);
+    await page.locator('#localAnalyzer').selectOption('cloud');
     await page.locator('#analyzeRounds').click(); await page.locator('#confirmLocalAnalysis').click();
     await page.waitForTimeout(2200); assert.match(await page.locator('#roundAnalysisStatus').textContent(), /00:0[2-9] elapsed/);
     await page.waitForTimeout(2100); assert.match(await page.locator('#roundAnalysisStatus').textContent(), /Provider is busy.*00:0[4-9] elapsed/);

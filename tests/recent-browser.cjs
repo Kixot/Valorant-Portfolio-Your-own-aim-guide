@@ -22,6 +22,7 @@ const assert = require('node:assert/strict');
     await page.locator('#localPlayer').evaluate(video => { video.currentTime = 1.25; }); await page.locator('#markRound').click();
     await page.locator('#localPlayer').evaluate(video => { video.currentTime = 2.5; });
     await page.locator('#roundList .vod-seek').click(); assert.equal(await page.locator('#localPlayer').evaluate(video => video.currentTime), 1.25);
+    await page.locator('#localAnalyzer').selectOption('cloud');
     await page.locator('#analyzeRounds').click(); assert.equal(await page.locator('#localAnalysisConfirm').isVisible(), true); assert.equal(uploads, 0);
     await page.locator('#cancelLocalAnalysis').click(); assert.equal(uploads, 0); assert.equal(await page.locator('#analyzeRounds').isEnabled(), true);
     await page.locator('#analyzeRounds').click();

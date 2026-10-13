@@ -15,7 +15,7 @@
   const interactive = 'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable="true"]';
   let frame = 0, x = 0, y = 0, positioned = false, hasPointer = false, activeTarget = null;
   const enabled = () => fine.matches && !coarse.matches && !motion.matches;
-  const nativePlayer = target => !!target?.closest?.('iframe, video, select, textarea, input:not([type="range"]):not([type="button"]):not([type="submit"])');
+  const nativePlayer = target => !!target?.closest?.('iframe, video, #hudPreview, select, textarea, input:not([type="range"]):not([type="button"]):not([type="submit"])');
   const hide = () => {
     cancelAnimationFrame(frame);
     frame = 0;

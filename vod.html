@@ -54,7 +54,7 @@
           <input id="youtubeUrl" type="text" inputmode="url" maxlength="2048" placeholder="https://www.youtube.com/watch?v=..." required />
           <button class="rbtn rbtn--solid" type="submit">Load YouTube</button>
         </form>
-        <div class="vod-local-source"><label class="vod-file-label" for="localFile">Local video<input id="localFile" type="file" accept="video/*,.mp4,.webm,.ogv,.mov,.m4v" /></label><p>Playback stays local. Analyze local video sends the file to Google.</p></div>
+        <div class="vod-local-source"><label class="vod-file-label" for="localFile">Local video<input id="localFile" type="file" accept="video/*,.mp4,.webm,.ogv,.mov,.m4v" /></label><p>Playback and on-device analysis stay local. Google AI is optional.</p></div>
       </div>
       <p id="vodStorageStatus" class="vod-storage" role="status" aria-live="polite"></p>
       <p id="vodStatus" class="vod-status" role="status" aria-live="polite"></p>
@@ -69,7 +69,19 @@
       </div>
       <div id="reviewWorkspace" hidden>
         <div class="vod-card" id="localAnalysisConfirm" role="dialog" aria-label="Send recording for analysis" hidden><p>Send this video to Google for AI round analysis? Free-tier inputs may be used to improve Google products.</p><div class="vod-actions"><button class="rbtn" id="confirmLocalAnalysis" type="button">Send and analyze</button><button class="rbtn" id="cancelLocalAnalysis" type="button">Cancel</button></div></div>
-        <section class="vod-card" aria-label="Detected rounds"><h3>Rounds</h3><p class="vod-empty">Google AI analyzes public YouTube videos or selected recordings. Unlisted YouTube links need the original file. Check uncertain timestamps.</p><div class="vod-actions"><button class="rbtn" type="button" id="analyzeRounds">Analyze rounds</button><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop waiting</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul></section>
+        <section class="vod-card" aria-label="Detected rounds">
+          <h3>Rounds</h3><p class="vod-empty" id="analysisHelp">YouTube analysis uses Google. Local recordings can be scanned on this device without an upload or API key. Review detected boundaries.</p>
+          <div id="localAnalyzerOptions" hidden>
+            <label for="localAnalyzer">Analyzer</label><select id="localAnalyzer"><option value="device">On this device</option><option value="cloud">Google AI (upload)</option></select>
+            <details id="hudOptions"><summary>Adjust HUD boxes</summary><p class="vod-empty">Drag a box around each score and the round timer. Keep only its digits inside.</p>
+              <label for="hudRegion">Box</label><select id="hudRegion"><option value="timer">Timer</option><option value="left">Left score</option><option value="right">Right score</option></select>
+              <canvas id="hudPreview" aria-label="HUD crop preview"></canvas>
+              <div class="hud-fields"><label>X %<input id="hudX" type="number" min="0" max="99" step="0.1" /></label><label>Y %<input id="hudY" type="number" min="0" max="99" step="0.1" /></label><label>Width %<input id="hudWidth" type="number" min="0.5" max="100" step="0.1" /></label><label>Height %<input id="hudHeight" type="number" min="0.5" max="100" step="0.1" /></label></div>
+              <button class="rbtn vod-mini" type="button" id="resetHud">Reset HUD boxes</button><p id="hudStatus" class="vod-status" role="status"></p>
+            </details>
+          </div>
+          <div class="vod-actions"><button class="rbtn" type="button" id="analyzeRounds">Analyze rounds</button><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop analysis</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul>
+        </section>
         <form class="vod-card vod-tag-form" id="mistakeForm" hidden>
           <label for="mistakeTime">Time (seconds or mm:ss)<input id="mistakeTime" type="text" inputmode="decimal" required maxlength="16" /></label>
           <label for="mistakeType">Type<select id="mistakeType"></select></label>
@@ -108,6 +120,8 @@
   <script src="js/navigation.js" defer></script>
   <script src="js/vod-core.js" defer></script>
   <script src="js/round-analysis-client.js" defer></script>
+  <script src="js/hud-analysis.js" defer></script>
+  <script src="js/hud-settings.js" defer></script>
   <script src="js/vod.js" defer></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
   const previewHelp = 'YouTube needs a web address. Double-click Preview.cmd in the site folder, then use the page it opens.';
   $('localPreviewHelp').hidden = youtubeSupported;
   const reviews = new Map(), files = new Map(), damaged = new Set();
-  let current = null, token = 0, objectUrl = null, youtube = null, loaded = false, apiPromise = null, playerTimer = null;
+  let current = null, token = 0, objectUrl = null, youtube = null, loaded = false, apiPromise = null, playerTimer = null, localDuration = 0;
   let analysisTask = null;
   const analysisTried = new Set();
   const confirmLocalUpload = signal => new Promise(resolve => {
@@ -50,7 +50,7 @@
   const save = () => { current.updated = new Date().toISOString(); persist(current); render(); };
   const newReview = source => ({ version: 1, key: core.key(source), source, updated: new Date().toISOString(), nextRound: 1, rounds: [], mistakes: [], detectedRounds: [] });
   const adapter = {
-    duration() { try { return current?.source.type === 'file' ? local.duration : youtube?.getDuration?.(); } catch { return 0; } },
+    duration() { try { return current?.source.type === 'file' ? (Number.isFinite(local.duration) ? local.duration : localDuration) : youtube?.getDuration?.(); } catch { return 0; } },
     currentTime() {
       if (!loaded || !current) return null;
       try { const value = current.source.type === 'file' ? local.currentTime : youtube.getCurrentTime(); return core.time(value); } catch { return null; }
@@ -58,7 +58,7 @@
     seek(value) {
       if (!loaded || core.time(value) === null) { message('Load the matching video before seeking.'); return false; }
       try {
-        const duration = current.source.type === 'file' ? local.duration : youtube.getDuration();
+        const duration = adapter.duration();
         if (Number.isFinite(duration) && duration > 0 && value > duration) { message('That timestamp is outside this video.'); return false; }
         if (current.source.type === 'file') local.currentTime = value; else youtube.seekTo(value, true);
         message('Seek: ' + core.stamp(value)); return true;
@@ -102,6 +102,9 @@
     ['exportReviewText', 'exportReviewJson', 'shareReview', 'deleteReview'].forEach(id => { $(id).disabled = !current; });
     $('analyzeRounds').disabled = !loaded || !!analysisTask;
     $('analyzeRounds').textContent = current?.source.type === 'file' ? 'Analyze local video' : 'Analyze rounds';
+    $('localAnalyzerOptions').hidden = current?.source.type !== 'file';
+    $('localAnalyzer').disabled = !!analysisTask;
+    $('hudOptions').hidden = $('localAnalyzer').value !== 'device';
     $('cancelRoundAnalysis').hidden = !analysisTask;
     $('activeVideo').textContent = current ? name(current) : 'Choose a video';
   };
@@ -116,6 +119,7 @@
     stopAnalysis();
     clearTimeout(playerTimer);
     loaded = false; adapter.pause();
+    localDuration = 0; local.onloadedmetadata = null; local.onloadeddata = null; local.onseeked = null; local.onerror = null;
     local.removeAttribute('src'); local.load(); local.hidden = true;
     if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
     if (youtube) { try { youtube.destroy(); } catch {} youtube = null; }
@@ -130,11 +134,26 @@
     try { sessionStorage.setItem('kixot_vod_active_v1', current.key); } catch {}
     persist(current); render();
     if (source.type === 'file') {
+      window.KixotHudSettings.select(current.key);
       const selected = file || files.get(current.key);
       if (!selected) { message('Choose the matching local file to play. Saved tags are restored.'); return; }
       files.set(current.key, selected); local.hidden = false;
-      local.onloadeddata = () => success(expected);
-      local.onloadedmetadata = () => success(expected);
+      const ready = () => {
+        if (expected !== token) return;
+        if (Number.isFinite(local.duration)) { localDuration = local.duration; success(expected); return; }
+        // WebM screen recordings can omit duration metadata. Seek to the end once
+        // without playing, then restore the initial frame and retain that duration.
+        local.onloadeddata = null; local.onloadedmetadata = null;
+        local.onseeked = () => {
+          if (expected !== token) return;
+          localDuration = Number.isFinite(local.duration) ? local.duration : local.currentTime;
+          local.onseeked = () => { local.onseeked = null; success(expected); };
+          local.currentTime = 0;
+        };
+        local.currentTime = 1e10;
+      };
+      local.onloadeddata = ready;
+      local.onloadedmetadata = ready;
       local.onerror = () => { if (expected === token) { loaded = false; syncControls(); message('This file could not play. Try an MP4 or WebM supported by your browser.'); } };
       try { objectUrl = URL.createObjectURL(selected); local.src = objectUrl; }
       catch { local.hidden = true; message('This browser could not open the local file. Choose it again or try another browser.'); return; }
@@ -174,7 +193,7 @@
     form.appendChild(timestampLabel);
     let label, type, note;
     if (kind === 'round') {
-      const field = element('label', 'Round'); label = element('input'); label.value = item.label; label.required = true; label.maxLength = 60; field.appendChild(label); form.appendChild(field);
+      const field = element('label', 'Point'); label = element('input'); label.value = item.label; label.required = true; label.maxLength = 60; field.appendChild(label); form.appendChild(field);
     } else {
       const field = element('label', 'Type'); type = element('select'); core.TYPES.forEach(value => type.appendChild(new Option(value, value))); type.value = item.type; field.appendChild(type);
       const noteLabel = element('label', 'Note'); note = element('textarea'); note.value = item.note; note.maxLength = 1000; noteLabel.appendChild(note); form.append(field, noteLabel);
@@ -184,6 +203,8 @@
     form.addEventListener('submit', event => {
       event.preventDefault(); const value = core.time(timestamp.value);
       if (value === null) { message('Use seconds or mm:ss, up to 24 hours.'); return; }
+      const duration = adapter.duration();
+      if (loaded && Number.isFinite(duration) && duration > 0 && value > duration) { message('That timestamp is outside this video.'); return; }
       item.time = value;
       if (kind === 'round') { if (!label.value.trim()) return; item.label = label.value.trim(); } else { item.type = type.value; item.note = note.value; }
       save(); message('Updated.');
@@ -282,6 +303,26 @@
     task.signal.addEventListener('abort', () => clearInterval(elapsedTimer), { once: true });
     try {
       updateElapsed();
+      if (current.source.type === 'file' && $('localAnalyzer').value === 'device') {
+        adapter.pause();
+        const duration = adapter.duration();
+        if (!Number.isFinite(duration) || duration <= 0) throw new Error('Wait for the recording duration, then analyze again.');
+        setPhase('Loading the on-device HUD reader.');
+        let scanStarted = null;
+        const rounds = await window.KixotHudAnalysis.scan({ src: objectUrl, duration, boxes: window.KixotHudSettings.getBoxes(), signal: task.signal,
+          progress: fraction => {
+            if (scanStarted === null) scanStarted = performance.now();
+            const elapsed = (performance.now() - scanStarted) / 1000;
+            const estimate = fraction > 0 && fraction < 1 && elapsed >= 5 ? ' About ' + core.stamp(Math.ceil(elapsed * (1 - fraction) / fraction)) + ' remaining.' : '';
+            setPhase('Scanning HUD: ' + Math.round(fraction * 100) + '%.' + estimate);
+          } });
+        if (expected !== token || current?.key !== key || task.signal.aborted) return;
+        const validated = core.validateDetectedRounds(rounds);
+        if (validated.length) { current.detectedRounds = validated; save(); }
+        $('roundAnalysisStatus').textContent = validated.length ? 'HUD boundaries detected. Review them for replays and delayed score updates.' : 'No complete rounds could be read. Adjust HUD boxes around the timer and scores, then scan again. Existing markers were kept.';
+        if (!validated.length) $('hudOptions').open = true;
+        return;
+      }
       const info = await window.KixotRoundAnalysis.info(task.signal);
       if (!info.configured) throw new Error('Round analysis is not available yet.');
       if (current.source.type === 'file' && info.localUploads !== true) throw new Error('This preview is out of date. Open Preview.cmd again for local video analysis.');
@@ -340,7 +381,8 @@
     } finally { clearInterval(elapsedTimer); if (analysisTask === task) { analysisTask = null; syncControls(); } }
   };
   $('analyzeRounds').addEventListener('click', () => startAnalysis(false));
-  $('cancelRoundAnalysis').addEventListener('click', () => { stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = 'Stopped waiting. Analyze rounds resumes the saved job if available.'; });
+  $('localAnalyzer').addEventListener('change', syncControls);
+  $('cancelRoundAnalysis').addEventListener('click', () => { const device = current?.source.type === 'file' && $('localAnalyzer').value === 'device'; stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = device ? 'HUD scan stopped. Existing markers were kept.' : 'Stopped waiting. Analyze rounds resumes the saved job if available.'; });
   const deleteSaved = review => {
     if (!confirm('Delete this saved review and all its tags?')) return;
     try { localStorage.removeItem(prefix + review.key); damaged.delete(review.key); } catch { warning('Removed from this visit only. Browser storage could not delete the saved copy.'); }
@@ -370,7 +412,7 @@
   });
   $('markRound').addEventListener('click', () => {
     const value = adapter.currentTime(); if (value === null) { message('Load a playable video first.'); return; }
-    if (current.rounds.length >= 1000) { message('Round limit reached. Export this review first.'); return; }
+    if (current.rounds.length >= 1000) { message('Point limit reached. Export this review first.'); return; }
     current.rounds.push({ id: uid(), time: value, label: 'Point ' + current.nextRound++ }); save(); message('Point marked. Use Jump to return to it.'); analytics('round_marked');
   });
   $('tagMistake').addEventListener('click', () => {
@@ -382,6 +424,8 @@
     event.preventDefault(); if (!current || !loaded) return;
     const value = core.time($('mistakeTime').value), type = $('mistakeType').value;
     if (value === null) { message('Use seconds or mm:ss, up to 24 hours.'); return; }
+    const duration = adapter.duration();
+    if (Number.isFinite(duration) && duration > 0 && value > duration) { message('That timestamp is outside this video.'); return; }
     if (current.mistakes.length >= 5000) { message('Tag limit reached. Export this review first.'); return; }
     current.mistakes.push({ id: uid(), time: value, type, note: $('mistakeNote').value }); $('mistakeForm').hidden = true;
     save(); message('Mistake tagged.'); analytics('mistake_tag_added', { mistake_type: type.toLowerCase().replaceAll(' ', '_') });
