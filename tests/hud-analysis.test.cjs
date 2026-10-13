@@ -33,3 +33,12 @@ test('Fleeting score regressions do not invent a new map', async () => {
   }) });
   assert.equal(rounds.length, 1); assert.equal(rounds[0].map, 1); assert.equal(rounds[0].round, 4);
 });
+
+test('a recording opening mid-round waits for the next live start and keeps match numbering', async () => {
+  const rounds = await hud.detect({ duration: 70, read: async time => ({
+    left: time >= 52 ? 5 : time >= 12 ? 4 : 3, right: 3,
+    timer: time < 12 ? 70 - Math.floor(time) : time < 28 || time >= 52 ? 30 : 100 - Math.floor(time - 28)
+  }) });
+  assert.equal(rounds.length, 1); assert.equal(rounds[0].round, 8);
+  assert.ok(Math.abs(rounds[0].start - 28) <= .25); assert.ok(Math.abs(rounds[0].end - 52) <= .25);
+});

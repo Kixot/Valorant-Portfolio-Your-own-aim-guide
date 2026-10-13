@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createService, normalize, collectRounds } = require('../server/round-analysis.cjs');
 const env = { GEMINI_API_KEY: 'fake-key-for-offline-tests-only', GEMINI_FREE_TIER_ONLY: 'true' };
 const input = { action: 'start', videoId: 'M7lc1UVf-VE', duration: 600 };
-const rounds = [{ map: 1, round: 1, start: 71.5, end: 148.25, confidence: 'high', evidence: 'Barriers drop; round winner banner appears.' }, { map: 1, round: 2, start: 180, end: 235, confidence: 'low', evidence: 'Score changes after an obscured last elimination.' }];
+const rounds = [{ map: 1, round: 1, start: 71.5, end: 148.25, confidence: 'high', evidence: 'Barriers drop; round winner banner appears.', startObserved: true, scoreBefore: { left: 0, right: 0 }, scoreAfter: { left: 1, right: 0 } }, { map: 1, round: 2, start: 180, end: 235, confidence: 'low', evidence: 'Score changes after an obscured last elimination.', startObserved: true, scoreBefore: { left: 1, right: 0 }, scoreAfter: { left: 1, right: 1 } }];
 const complete = () => ({ id: 'job_example', status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: JSON.stringify({ rounds }) }] }] });
 const response = data => ({ ok: true, status: 200, json: async () => data });
 test('unconfigured or unconfirmed free-tier setup makes no provider calls', async () => {
@@ -28,8 +28,32 @@ test('starts one background video job, authenticates polling and parses actual i
   assert.equal(sent.background, true); assert.equal(sent.model, 'gemini-3.5-flash-lite'); assert.deepEqual(sent.input[0].processing, { type: 'static' }); assert.equal(sent.input[0].resolution, 'low'); assert.equal(sent.input[0].uri, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
   assert.equal(sent.response_format.schema.properties.rounds.items.properties.start.type, 'string');
   assert.match(sent.system_instruction, /never from regular time intervals/);
+  assert.match(sent.system_instruction, /omit that partial round/);
+  assert.ok(sent.response_format.schema.properties.rounds.items.required.includes('scoreBefore'));
   assert.equal(JSON.stringify(sent).includes('note'), false);
   assert.equal((await service.run(input)).status, 'completed'); assert.equal(requests.length, 2);
+});
+
+test('opening partial rounds are omitted and match numbers come from pre-resolution scores', () => {
+  const result = collectRounds({ rounds: [
+    { ...rounds[0], start: 0, end: 30 },
+    { ...rounds[0], start: 40, end: 60, startObserved: false },
+    { ...rounds[1], round: 3 }
+  ] }, 600, { requireBoundaryEvidence: true });
+  assert.equal(result.discarded, 2); assert.equal(result.rounds.length, 1);
+  assert.equal(result.rounds[0].round, 2, 'updated end score must not make Round 2 become Round 3');
+  assert.equal(result.rounds[0].start, 180, 'number correction must not shift a timestamp');
+  const midMatch = normalize({ rounds: [{ ...rounds[0], round: 1, scoreBefore: { left: 3, right: 3 }, scoreAfter: { left: 4, right: 3 } }] }, 600, { requireBoundaryEvidence: true });
+  assert.equal(midMatch[0].round, 7, 'omitted opening footage must not restart match numbering');
+  for (const scoreAfter of [{ left: 0, right: 0 }, { left: 2, right: 0 }, { left: 1, right: 1 }]) assert.throws(() => normalize({ rounds: [{ ...rounds[0], scoreAfter }] }, 600, { requireBoundaryEvidence: true }), /one completed round/);
+});
+
+test('new completed cloud jobs enforce observed starts and correct round labels', async () => {
+  const service = createService({ env, fetcher: async () => response({ id: 'job_example', status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: JSON.stringify({ rounds: [{ ...rounds[0], start: 0 }, { ...rounds[1], round: 3 }] }) }] }] }) });
+  const result = await service.run(input);
+  assert.equal(result.discarded, 1); assert.equal(result.rounds.length, 1);
+  assert.equal(result.rounds[0].round, 2); assert.equal(result.rounds[0].start, 180);
+  assert.match(result.message, /rejected 1/);
 });
 test('quota exhaustion stops, without retries or paid model fallback', async () => {
   let calls = 0;
