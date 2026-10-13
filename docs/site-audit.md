@@ -1,6 +1,6 @@
 # Deployment audit, 2026-10-13
 
-All 34 dependency-free checks passed. Site JavaScript passed syntax checks, all local HTML asset/page paths exist, and the source scan found no em dashes, H1 elements or shadow effects. The original hero source and styles were preserved. Cloud checks cover observed starts, pre-resolution score numbering, partial results and serverless upload restrictions.
+All 35 dependency-free checks passed. Site JavaScript passed syntax checks, all local HTML asset/page paths exist, and the source scan found no em dashes, H1 elements or shadow effects. The original hero source and styles were preserved. Cloud checks cover observed starts, pre-resolution score numbering, partial results and serverless upload restrictions.
 
 Browser checks passed for homepage section links, Quick 30 navigation, survey mode preselection, keyboard menu operation, header spacing and no overflow at 360, 390, 768 and 1440 pixels. No script errors, missing local assets or failed requests occurred in that navigation audit. Generated screenshots and reports now use ignored `.task-test-output/` and are removed during cleanup.
 
