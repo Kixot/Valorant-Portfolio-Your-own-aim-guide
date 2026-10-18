@@ -32,7 +32,7 @@ test('search metadata identifies each public page and exposes crawlable image pr
     assert.ok(sitemap.includes('<loc>' + url + '</loc>'));
   }
   assert.match(read('robots.txt'), /Allow: \/\s/);
-  assert.ok(read('robots.txt').includes('Sitemap: ' + origin + '/sitemap.xml'));
+  assert.ok(read('robots.txt').includes('Sitemap: https://kixotgg.com/sitemap.xml'));
 });
 
 test('favicon files are real square PNGs and a valid multi-size ICO, included for deployment', () => {

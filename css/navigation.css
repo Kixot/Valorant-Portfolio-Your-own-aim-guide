@@ -39,7 +39,7 @@
   body header { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 0 12px; padding: calc(20px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 12px max(18px, env(safe-area-inset-left, 0px)); }
   header .site-dock { --branch-row-height: 44px; position: relative; inset: auto; grid-column: 1 / -1; grid-row: 1; width: 100%; min-width: 0; }
   .site-dock.is-open::after { display: none; }
-  .site-dock .branch-menu { position: relative; inset: auto; width: 100%; margin-top: 26px; background: #080808; }
+  .site-dock .branch-menu { position: relative; inset: auto; width: 100%; margin-top: 26px; background: transparent; }
   .branch-heading { min-height: 44px; }
   body header .dojo-home, body header .dojo-back, body header .vod-home { position: relative; inset: auto; grid-column: 2; grid-row: 1; justify-self: end; width: 126px; height: 40px; padding: 10px; font-size: 11px; line-height: 1; }
   body header .dojo-back { margin-top: 48px; }

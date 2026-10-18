@@ -56,6 +56,7 @@
     try { return action(); } finally { nativeDialogs--; restore(); }
   } });
   window.addEventListener('pointermove', (event) => {
+    if (event.buttons & 2) { hasPointer = false; hide(); return; }
     if (event.pointerType !== 'touch') { x = event.clientX; y = event.clientY; hasPointer = true; }
     if (!cur || !enabled() || event.pointerType === 'touch' || document.pointerLockElement || nativePlayer(event.target)) {
       hide();
@@ -73,10 +74,13 @@
   }, { passive: true });
   document.addEventListener('focusin', event => { if (nativePlayer(event.target)) hide(); });
   document.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'touch') { hide(); return; }
+    if (event.pointerType === 'touch' || event.button === 2) { hasPointer = false; hide(); return; }
     x = event.clientX; y = event.clientY; hasPointer = true;
     if (nativePlayer(event.target)) hide(); else restore();
   }, { passive: true });
+  // Native context menus cover the page without reliably blurring the window.
+  // Wait for a new page pointer event before showing the custom cursor again.
+  document.addEventListener('contextmenu', () => { hasPointer = false; hide(); });
   // A click may remove a confirmation panel or disable its button. Recheck the
   // element under the real pointer after all click handlers finish.
   document.addEventListener('click', () => queueMicrotask(restore));
