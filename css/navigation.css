@@ -1,6 +1,6 @@
 /* FolderFloat proportions and BranchedMenu path geometry, adapted to vanilla. */
-.site-dock { position: fixed; left: 22px; top: 26px; z-index: 150; width: 210px; pointer-events: none; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif; }
-.site-dock button, .site-dock a { font-family: inherit; }
+.site-dock { --branch-row-height: 32px; position: fixed; left: 22px; top: 26px; z-index: 150; width: 210px; pointer-events: none; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif; }
+.site-dock button, .site-dock a { font-family: inherit; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
 .dock-folder { position: relative; width: 96px; height: 71px; pointer-events: auto; transition: transform 520ms cubic-bezier(.23,1,.32,1); }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .site-dock .dock-folder:hover { transform: translateY(-2px) scale(1.015); }
@@ -32,6 +32,17 @@
 .branch-lines { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
 .branch-lines path { fill: none; stroke: #3f3f46; stroke-width: 1.5; stroke-linecap: round; }
 .branch-lines .branch-reach { stroke: #fff; transition: stroke-dashoffset 400ms cubic-bezier(.23,1,.32,1); }
-.branch-link { display: flex; align-items: center; height: 32px; padding-left: 40px; color: #999; text-decoration: none; white-space: nowrap; font-size: 13px; }
+.branch-link { display: flex; align-items: center; height: var(--branch-row-height); padding-left: 40px; color: #999; text-decoration: none; white-space: nowrap; font-size: 13px; }
 .branch-link:hover, .branch-link.is-active, .branch-link[aria-current="page"] { color: #fff; }
+/* A phone menu takes up its own space instead of covering page controls. */
+@media (max-width: 768px), (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  body header { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 0 12px; padding: calc(20px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 12px max(18px, env(safe-area-inset-left, 0px)); }
+  header .site-dock { --branch-row-height: 44px; position: relative; inset: auto; grid-column: 1 / -1; grid-row: 1; width: 100%; min-width: 0; }
+  .site-dock.is-open::after { display: none; }
+  .site-dock .branch-menu { position: relative; inset: auto; width: 100%; margin-top: 26px; background: #080808; }
+  .branch-heading { min-height: 44px; }
+  body header .dojo-home, body header .dojo-back, body header .vod-home { position: relative; inset: auto; grid-column: 2; grid-row: 1; justify-self: end; width: 126px; height: 40px; padding: 10px; font-size: 11px; line-height: 1; }
+  body header .dojo-back { margin-top: 48px; }
+  .training-page .wrap, .tool-page main { padding-top: 24px; }
+}
 @media (prefers-reduced-motion: reduce) { .site-dock *, .site-dock *::before { transition: none !important; animation: none !important; } }

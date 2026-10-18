@@ -17,7 +17,7 @@ const server = http.createServer(async (req, res) => {
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return; }
     const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'index.html';
     const file = path.resolve(root, relative), extension = path.extname(file).toLowerCase();
-    const allowed = /^(?:(?:index|dojo|vod|training)\.html|robots\.txt|sitemap\.xml|(?:css|js|assets|pages)\/)/.test(relative);
+    const allowed = /^(?:(?:index|dojo|vod|training)\.html|favicon\.ico|robots\.txt|sitemap\.xml|(?:css|js|assets|pages)\/)/.test(relative);
     if (!allowed || relative.split(/[\\/]/).some(part => part.startsWith('.')) || !file.startsWith(root + path.sep) || !types[extension] || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end('Not found.'); return; }
     res.writeHead(200, { 'Content-Type': types[extension] + '; charset=utf-8', 'Content-Length': fs.statSync(file).size, 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Cache-Control': 'no-cache' });
     if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);

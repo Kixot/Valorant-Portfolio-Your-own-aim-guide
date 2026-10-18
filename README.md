@@ -10,6 +10,8 @@ Plain HTML, CSS and JavaScript, with an optional private Node service for round 
 
 Serve the pages with any static web server. YouTube round analysis additionally needs the private Node API. Canonical pages are listed in `sitemap.xml`; compatibility redirects are excluded.
 
+Search appearance uses crawlable PNG/ICO favicons, an Apple touch icon, social preview tags and JSON-LD for the creator and tools. On phones, opening the folder menu makes space above the page content. See [mobile and search validation](docs/search-mobile.md) for checks and Search Console steps after redeploying.
+
 For Vercel, select the Other framework preset. `vercel.json` leaves the build command empty and gives the analysis function up to 60 seconds per request. `.vercelignore` uploads the website and required API modules while excluding local secrets, test artifacts, documentation and preview tooling. Protected routes block direct access to server source and development files. No build step or new framework was added. The hosted deployment has not been exercised by the local checks.
 
 Set `GEMINI_API_KEY`, `GEMINI_FREE_TIER_ONLY=true` and `ANALYSIS_ALLOWED_ORIGINS=https://www.kixotgg.com,https://kixotgg.com` in the host's private environment settings. Use a billing-disabled Google project. Never upload `.env` or put its key in frontend files. The existing local `.env` is preserved. After deploying, check `/api/analyze-rounds` for configuration status, play a public YouTube video and verify a completed drill in GA4 Realtime. Check the platform's free usage limits.

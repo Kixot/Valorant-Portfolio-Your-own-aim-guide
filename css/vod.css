@@ -70,6 +70,7 @@
   .vod-page .section { padding-inline: 18px; }
   .vod-source-form { grid-template-columns: minmax(0, 1fr); }
   .vod-player-card { padding: 12px; }
+  .vod-player-frame { min-height: 0; width: 100%; }
   .vod-player-actions .rbtn { flex: 1; }
   .vod-home { top: 24px; right: 18px; padding: 9px 10px; font-size: 11px; }
   .vod-saved-row { flex-wrap: wrap; }

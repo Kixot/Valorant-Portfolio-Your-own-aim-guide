@@ -17,7 +17,7 @@
   const tree = make('div', 'branch-menu'); tree.id = 'siteMenu'; tree.hidden = true;
   const groups = [{ label: 'Site', links: [links[0], links[1], links[4]] }, { label: 'Training', links: [links[2], links[3]] }];
   const marker = make('span', 'branch-marker'); tree.appendChild(marker);
-  const paths = [];
+  const paths = [], layouts = [];
   const svgNode = tag => document.createElementNS('http://www.w3.org/2000/svg', tag);
   groups.forEach((group, groupIndex) => {
     const section = make('div', 'branch-section is-expanded');
@@ -33,14 +33,31 @@
       const length = y - 10 + Math.PI * 5 + 8; active.style.strokeDasharray = length; active.style.strokeDashoffset = length; svg.appendChild(active);
       link.className = 'site-link branch-link' + (link.classList.contains('is-active') || link.hasAttribute('aria-current') ? ' is-active' : '');
       // Keep the homepage section links and full-page destinations intact.
-      inner.appendChild(link); paths.push({ link, path: active, length, heading, section });
+      inner.appendChild(link); paths.push({ link, path: active, length, heading, section, index });
     });
+    layouts.push({ svg, trunk, count: group.links.filter(Boolean).length });
     inner.prepend(svg); body.appendChild(inner); section.append(heading, body); tree.appendChild(section);
     heading.addEventListener('click', () => {
       const expanded = section.classList.toggle('is-expanded'); heading.setAttribute('aria-expanded', String(expanded)); inner.inert = !expanded; syncMarker();
     });
   });
   dock.append(folder, tree);
+  const syncGeometry = () => {
+    const rowHeight = parseFloat(getComputedStyle(dock).getPropertyValue('--branch-row-height')) || 32;
+    layouts.forEach(({ svg, trunk, count }) => {
+      svg.setAttribute('height', String(12 + count * rowHeight));
+      trunk.setAttribute('d', 'M14 0 V' + (6 + (count - 1) * rowHeight + rowHeight / 2 - 10));
+    });
+    paths.forEach(item => {
+      const y = 6 + item.index * rowHeight + rowHeight / 2;
+      const branch = item.path.previousElementSibling;
+      branch.setAttribute('d', `M14 ${y - 10} A10 10 0 0 0 24 ${y} H32`);
+      item.path.setAttribute('d', `M14 0 V${y - 10} A10 10 0 0 0 24 ${y} H32`);
+      item.length = y - 10 + Math.PI * 5 + 8;
+      item.path.style.strokeDasharray = item.length;
+    });
+  };
+  syncGeometry();
   const syncMarker = () => {
     let active = paths.find(item => item.link.classList.contains('is-active') || item.link.getAttribute('aria-current') === 'page') || paths[0];
     paths.forEach(item => { item.path.style.strokeDashoffset = item === active ? 0 : item.length; });
@@ -64,13 +81,15 @@
     clearTimeout(hoverTimer);
     if (event.pointerType === 'mouse') closeTimer = setTimeout(() => { if (!dock.matches(':hover') && !dock.contains(document.activeElement)) setOpen(false); }, 180);
   });
-  document.addEventListener('click', event => { if (!dock.contains(event.target) || event.target.closest('a')) setOpen(false); });
+  // Collapse before the document's anchor handler calculates the scroll target.
+  dock.addEventListener('click', event => { if (event.target.closest('a')) setOpen(false); });
+  document.addEventListener('click', event => { if (!dock.contains(event.target)) setOpen(false); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && dock.classList.contains('is-open')) { setOpen(false); toggle.focus(); } });
   dock.addEventListener('focusout', () => { requestAnimationFrame(() => { if (!dock.contains(document.activeElement) && !dock.matches(':hover')) setOpen(false); }); });
   new MutationObserver(syncMarker).observe(tree, { subtree: true, attributes: true, attributeFilter: ['class', 'aria-current'] });
   tree.addEventListener('transitionend', syncMarker);
   tree.addEventListener('animationend', syncMarker);
-  window.addEventListener('resize', syncMarker, { passive: true });
+  window.addEventListener('resize', () => { syncGeometry(); syncMarker(); }, { passive: true });
   motion.addEventListener('change', syncMarker);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(hoverTimer); clearTimeout(closeTimer); setOpen(false); } });
 })();
