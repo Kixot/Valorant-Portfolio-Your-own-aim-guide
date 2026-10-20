@@ -6,11 +6,21 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
   try {
     for (const deviceScaleFactor of [1, 2]) {
-      const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor });
+      const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, screen: { width: 1920, height: 1080 }, deviceScaleFactor });
       await require('./browser-fixtures.cjs').withoutGoogleAnalytics(context);
       const errors = [];
       for (const mode of deviceScaleFactor === 1 ? ['flick', 'precision', 'track'] : ['flick']) {
         const page = await context.newPage();
+        const focalLength = () => page.evaluate(() => {
+          const view = window.__range.view, canvas = document.querySelector('#range3d');
+          return canvas.clientWidth / (2 * Math.tan(view.horizontalFov * Math.PI / 360));
+        });
+        const checkView = async () => {
+          const view = await page.evaluate(() => { const c = document.querySelector('#range3d'); return { ...window.__range.view, width: c.clientWidth, height: c.clientHeight }; });
+          const expected = require('../js/sensitivity.js').projection(view.width, view.height, view.referenceWidth);
+          near(view.horizontalFov, expected.horizontalFov, 'windowed projection');
+          near(await focalLength(), expected.focalLength, 'screen-space aim scale');
+        };
         page.on('pageerror', error => errors.push(error.message));
         await page.goto(base + '/dojo.html');
         await page.locator(`[data-launch-mode="${mode}"]`).click();
@@ -36,16 +46,22 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
         for (const width of [1000, 720, 1440]) {
           await page.setViewportSize({ width, height: 900 });
           await page.waitForFunction(() => { const c = document.querySelector('#range3d'); return Math.abs(window.__range.view.aspect - c.clientWidth / c.clientHeight) < 1e-7; });
-          near(await page.evaluate(() => window.__range.view.horizontalFov), 103, 'horizontal field of view');
+          await checkView();
         }
         // Element-only changes also need a projection update, without a window resize.
         await page.locator('#range3d').evaluate(canvas => { canvas.style.height = '300px'; });
         await page.waitForFunction(() => { const c = document.querySelector('#range3d'); return Math.abs(window.__range.view.aspect - c.clientWidth / c.clientHeight) < 1e-7; });
-        near(await page.evaluate(() => window.__range.view.horizontalFov), 103, 'element resize');
+        await checkView();
         await page.locator('#ovFs').click(); await page.waitForFunction(() => !!document.fullscreenElement);
         await page.waitForFunction(() => { const c = document.querySelector('#range3d'); return Math.abs(window.__range.view.aspect - c.clientWidth / c.clientHeight) < 1e-7; });
         near(await page.evaluate(() => window.__range.view.horizontalFov), 103, 'fullscreen field of view');
+        const fullscreenFocal = await focalLength();
         await page.evaluate(() => document.exitFullscreen());
+        await page.waitForFunction(() => !document.fullscreenElement);
+        await page.setViewportSize({ width: 1000, height: 900 });
+        await page.waitForFunction(() => { const c = document.querySelector('#range3d'); return Math.abs(window.__range.view.aspect - c.clientWidth / c.clientHeight) < 1e-7; });
+        near(await focalLength(), fullscreenFocal, 'fullscreen-to-windowed visual sensitivity');
+        assert.ok(await page.evaluate(() => window.__range.view.horizontalFov < 103), 'windowed view must crop instead of shrinking the fullscreen view');
         await page.close();
       }
       assert.deepEqual(errors, []); await context.close();
@@ -71,6 +87,6 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
       assert.match(await page.locator('#sensitivityStatus').innerText(), /Raw mouse input/);
       await context.close();
     }
-    console.log('1600 DPI / 0.145 uses exact unclipped turns in all modes, with additional DPR 2 checks. Resizing/fullscreen preserve 103-degree horizontal FOV. Unsupported and legacy raw input warn without losing the lock. Synthetic deltas do not verify physical mouse travel.');
+    console.log('1600 DPI / 0.145 preserves raw yaw in all modes. Windowed views match fullscreen focal length; fullscreen keeps 103-degree FOV. Resizing, DPR, raw-input fallback and legacy API checks passed.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

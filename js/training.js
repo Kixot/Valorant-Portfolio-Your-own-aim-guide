@@ -534,6 +534,7 @@
       const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
       let renderer = null, scene = null, camera = null, gun = null;
+      let fullscreenView = null, viewReferenceWidth = 0;
       let yaw = 0, pitch = 0;
       let playing = false, locked = false, paused = false;
       /* true only while the 3-2-1 is on screen. the 30s exercise clock is held
@@ -600,12 +601,16 @@
         if (!w || !h) return;
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
-        /* THE sens feel fix: valorant's 103 degrees is HORIZONTAL fov. three.js fov is
-           vertical. a 103 vertical fov on 16:9 is ~132 horizontal - the world looked
-           shrunk and every turn felt way slower than valorant at the same sens.
-           derive the vertical fov that yields exactly 103 horizontal at this aspect. */
-        const hFov = 103 * Math.PI / 180;
-        camera.fov = 2 * Math.atan(Math.tan(hFov / 2) / camera.aspect) * 180 / Math.PI;
+        const fullscreen = !!document.fullscreenElement?.contains(canvas3d);
+        const displayWidth = Number(window.screen?.width) || window.innerWidth;
+        const pixelRatio = window.devicePixelRatio || 1;
+        if (fullscreen) fullscreenView = { width: w, pixelRatio };
+        const reference = fullscreenView
+          ? fullscreenView.width * fullscreenView.pixelRatio / pixelRatio : displayWidth;
+        // Preserve fullscreen's screen-space aim scale in the smaller window.
+        // A narrower viewport crops the view instead of shrinking 103 degrees into it.
+        viewReferenceWidth = fullscreen || isTouch ? w : Math.max(w, window.innerWidth, reference);
+        camera.fov = sensitivityMath.projection(w, h, viewReferenceWidth).verticalFov;
         camera.updateProjectionMatrix();
       };
       new ResizeObserver(() => { sizeRange(); resizeXhLayer(); }).observe(canvas3d);
@@ -737,7 +742,13 @@
           t.position.set(0, 2.1, -14);
           t.userData = { r, vx: (Math.random() < 0.5 ? -1 : 1) * 2.8 * diff.track, turn: 0, wob: Math.random() * 6 };
         } else {
-          t.position.set((Math.random() - 0.5) * 22, 1.0 + Math.random() * 4.6, -6 - Math.random() * 13);
+          const z = -6 - Math.random() * 13, distance = camera.position.z - z;
+          const halfHeight = distance * Math.tan(camera.fov * Math.PI / 360);
+          const halfWidth = halfHeight * camera.aspect;
+          const xLimit = Math.min(11, Math.max(0, halfWidth * 0.9 - r));
+          const yMin = Math.max(1, camera.position.y - halfHeight * 0.9 + r);
+          const yMax = Math.max(yMin, Math.min(5.6, camera.position.y + halfHeight * 0.9 - r));
+          t.position.set((Math.random() * 2 - 1) * xLimit, yMin + Math.random() * (yMax - yMin), z);
           t.userData = { r };
         }
         scene.add(t);
@@ -1631,7 +1642,7 @@
         get cameraYaw() { return yaw; },
         get cameraPitch() { return pitch; },
         get inputMode() { return mouseInputMode; },
-        get view() { return camera ? { aspect: camera.aspect, verticalFov: camera.fov, horizontalFov: 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 180 / Math.PI } : null; }
+        get view() { return camera ? { aspect: camera.aspect, verticalFov: camera.fov, referenceWidth: viewReferenceWidth, horizontalFov: 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 180 / Math.PI } : null; }
       };
       if (new URLSearchParams(location.search).get('quick') === '1') $('#btnQuick').click();
       window.KixotAnalytics?.track('dojo_opened');
