@@ -367,11 +367,12 @@
 
       /* ================= settings ================= */
       const settings = { dpi: 800, color: '#ffffff', style: 'cross', outline: false, len: 4, thick: 1, gap: 2, sens: 0.4 };
+      let mouseInputMode = 'unlocked', inputWarning = '';
       /* ---- valorant sens math, exact ----
          valorant turns 0.07 degrees per mouse COUNT per sens point, on raw input.
-         with unadjustedMovement (requested above) the browser hands over raw counts
-         in movementX - so one count here is one count in valorant. no dpi factor,
-         no display scaling, no feel tweaks: same number in, same turn out. */
+         request unadjusted movement and report browsers that cannot confirm it.
+         DPI is already reflected in raw counts from the mouse. Do not multiply
+         those counts by DPI, display scaling or frame time. */
       const sensitivityMath = window.KixotSensitivity;
       const degPerCount = (sens) => sensitivityMath.degrees(1, sens);
       try {
@@ -427,7 +428,7 @@
         }
         settings.sens = sens;
         $('#rngSens').value = Number(sens.toFixed(8));
-        $('#sensitivityStatus').textContent = '';
+        $('#sensitivityStatus').textContent = inputWarning;
         saveSensitivity();
         return true;
       };
@@ -505,7 +506,7 @@
         paintXh(g, cx, cy, L, G, (w) => Math.max(1.5, w * 0.8), T, settings.color);
         g.shadowBlur = 0;
       };
-      window.addEventListener('resize', resizeXhLayer);
+      window.addEventListener('resize', () => { sizeRange(); resizeXhLayer(); });
 
       /* ================= 3D range ================= */
       const MODES = {
@@ -567,13 +568,26 @@
       const safeLock = async () => {
         if (locked || lockRequest || isTouch) return;
         lockRequest = true;
+        mouseInputMode = 'pending';
         try {
-          await canvas3d.requestPointerLock({ unadjustedMovement: true });
+          // Older APIs may silently ignore options, even when the lock succeeds.
+          let readRawOption = false;
+          const request = canvas3d.requestPointerLock({ get unadjustedMovement() { readRawOption = true; return true; } });
+          const confirmsRawOption = readRawOption && typeof request?.then === 'function';
+          await request;
+          mouseInputMode = confirmsRawOption ? 'raw' : 'unknown';
+          inputWarning = confirmsRawOption ? '' : 'Raw mouse input could not be verified in this browser; sensitivity may differ.';
+          $('#sensitivityStatus').textContent = inputWarning;
         } catch (error) {
           // Only unsupported raw input needs a second request. Other failures wait for a click.
           if (error?.name === 'NotSupportedError') {
-            try { await canvas3d.requestPointerLock(); $('#sensitivityStatus').textContent = 'Raw mouse input is unavailable in this browser; sensitivity may differ.'; } catch {}
-          }
+            try {
+              await canvas3d.requestPointerLock();
+              mouseInputMode = 'adjusted';
+              inputWarning = 'Raw mouse input is unavailable in this browser; sensitivity may differ.';
+              $('#sensitivityStatus').textContent = inputWarning;
+            } catch { mouseInputMode = 'unlocked'; }
+          } else mouseInputMode = 'unlocked';
         } finally { lockRequest = false; }
       };
 
@@ -594,6 +608,7 @@
         camera.fov = 2 * Math.atan(Math.tan(hFov / 2) / camera.aspect) * 180 / Math.PI;
         camera.updateProjectionMatrix();
       };
+      new ResizeObserver(() => { sizeRange(); resizeXhLayer(); }).observe(canvas3d);
 
       /* three.js is ~600kb and the survey takes a while, so it only loads when
          the range actually appears. loadThree() injects the script once and
@@ -1332,15 +1347,11 @@
 
       document.addEventListener('mousemove', (e) => {
         if (!locked) return;
-        /* movementX IS the raw mouse count (unadjustedMovement): deg = 0.07 x sens x count.
-           exactly valorant's turn rate - nothing added, nothing compensated. */
+        /* Apply every finite delta, including batched movements after a busy frame.
+           Clipping a batch changes physical sensitivity during faster turns. */
         const radPerCount = degPerCount(settings.sens) * (Math.PI / 180);
-        /* sanity ceiling only, far beyond any real flick, purely to survive a
-           browser glitch. the old code clamped every event for 60ms to ±120 counts,
-           which chopped the head off real flicks (a hard flick is 200 to 800 counts
-           in one go) and was very likely the "feels slow" you hit. */
-        const mx = Math.max(-5000, Math.min(5000, e.movementX));
-        const my = Math.max(-5000, Math.min(5000, e.movementY));
+        const mx = e.movementX, my = e.movementY;
+        if (!Number.isFinite(mx) || !Number.isFinite(my)) return;
         yaw -= mx * radPerCount;
         pitch -= my * radPerCount;
         clampPitch();
@@ -1618,7 +1629,9 @@
         setMode(m) { document.querySelector('[data-mode="' + m + '"]').click(); },
         finish() { timeLeft = 0.01; },
         get cameraYaw() { return yaw; },
-        get cameraPitch() { return pitch; }
+        get cameraPitch() { return pitch; },
+        get inputMode() { return mouseInputMode; },
+        get view() { return camera ? { aspect: camera.aspect, verticalFov: camera.fov, horizontalFov: 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 180 / Math.PI } : null; }
       };
       if (new URLSearchParams(location.search).get('quick') === '1') $('#btnQuick').click();
       window.KixotAnalytics?.track('dojo_opened');

@@ -14,6 +14,13 @@ test('full turns are independent of how counts are split across events', () => {
   near(math.degrees(400, 0.4) + math.degrees(counts - 400, 0.4), 360);
   near(math.degrees(counts, 0.2), 180);
 });
+
+test('0.145 sensitivity preserves small adjustments and batched turns', () => {
+  near(math.degrees(1, 0.145), 0.01015);
+  near(math.degrees(1000, 0.145), 10.15);
+  near(math.degrees(7000, 0.145), 71.05);
+  near(math.degrees(7000, 0.145), math.degrees(3500, 0.145) * 2);
+});
 test('invalid inputs cannot produce invalid camera rotations', () => {
   for (const value of [0, -1, NaN, Infinity, '0.4']) assert.throws(() => math.degrees(100, value), RangeError);
   for (const value of [NaN, Infinity, -Infinity, '100']) assert.throws(() => math.degrees(value, 0.4), RangeError);
