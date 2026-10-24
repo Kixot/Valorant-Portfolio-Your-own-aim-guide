@@ -752,6 +752,8 @@
           t.userData = { r };
         }
         scene.add(t);
+        // Make a replacement hittable even before the next rendered frame.
+        t.updateMatrixWorld(true);
         targets.push(t);
       };
 
@@ -791,8 +793,9 @@
             score += diff.pts + streak * 15;
             scene.remove(obj);
             targets = targets.filter((t) => t !== obj);
+            // Replace in the same shot so pausing cannot cancel a pending spawn.
+            spawnTarget();
             burst(hitArr[0].point);
-            setTimeout(() => { if (playing && !paused) spawnTarget(); }, 200 / diff.respawn);
           }
           beep(760 + Math.min(500, streak * 40), 0.06, 'square', 0.05);
         } else if (mode !== 'track') {
