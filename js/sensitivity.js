@@ -11,14 +11,14 @@
       if (!Number.isFinite(counts)) throw new RangeError('Invalid mouse count.');
       return counts * positive(sens) * yaw.valorant;
     },
-    projection: (width, height, referenceWidth = width) => {
-      positive(width); positive(height); positive(referenceWidth);
-      const reference = Math.max(width, referenceWidth);
+    windowScale: (width, referenceWidth) => Math.max(1, positive(referenceWidth) / positive(width)),
+    projection: (width, height) => {
+      positive(width); positive(height);
       const tangent = Math.tan(103 * Math.PI / 360);
       return {
-        verticalFov: 2 * Math.atan(tangent * height / reference) * 180 / Math.PI,
-        horizontalFov: 2 * Math.atan(tangent * width / reference) * 180 / Math.PI,
-        focalLength: reference / (2 * tangent)
+        verticalFov: 2 * Math.atan(tangent * height / width) * 180 / Math.PI,
+        horizontalFov: 103,
+        focalLength: width / (2 * tangent)
       };
     }
   });

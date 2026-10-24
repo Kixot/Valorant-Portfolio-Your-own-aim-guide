@@ -30,18 +30,28 @@ if ($Serve) {
         $status = '404 Not Found'
         $body = [Text.Encoding]::UTF8.GetBytes('Not found.')
         $contentType = 'text/plain'
+        $locationHeader = ''
         if ($parts[0] -notin @('GET', 'HEAD')) { $status = '405 Method Not Allowed' }
         else {
           $relative = [Uri]::UnescapeDataString(($parts[1] -split '\?', 2)[0]).TrimStart('/')
+          $routeConfig = [IO.File]::ReadAllText((Join-Path $projectRoot 'vercel.json')) | ConvertFrom-Json
+          $routePath = '/' + $relative
+          $matchedRoute = $routeConfig.routes | Where-Object { $_.src -and $routePath -cmatch ('^' + $_.src + '$') } | Select-Object -First 1
+          if ($matchedRoute.headers.Location) {
+            $query = if ($parts[1].Contains('?')) { '?' + ($parts[1] -split '\?', 2)[1] } else { '' }
+            $destination = [regex]::Replace($routePath, ('^' + $matchedRoute.src + '$'), $matchedRoute.headers.Location) + $query
+            $locationHeader = "Location: $destination`r`n"
+            $status = '308 Permanent Redirect'; $body = [byte[]]@()
+          } elseif ($matchedRoute.dest) { $relative = ([regex]::Replace($routePath, ('^' + $matchedRoute.src + '$'), $matchedRoute.dest)).TrimStart('/') }
           if (-not $relative) { $relative = 'index.html' }
           $absolute = [IO.Path]::GetFullPath((Join-Path $projectRoot $relative))
           $extension = [IO.Path]::GetExtension($absolute).ToLowerInvariant()
           $inProject = $absolute.StartsWith($projectRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
-          if ($inProject -and $relative -notmatch '(^|[\\/])\.' -and $mime.ContainsKey($extension) -and [IO.File]::Exists($absolute)) {
+          if (-not $matchedRoute.status -and $inProject -and $relative -notmatch '(^|[\\/])\.' -and $mime.ContainsKey($extension) -and [IO.File]::Exists($absolute)) {
             $status = '200 OK'; $body = [IO.File]::ReadAllBytes($absolute); $contentType = $mime[$extension]
           }
         }
-        $headers = "HTTP/1.1 $status`r`nContent-Type: $contentType; charset=utf-8`r`nContent-Length: $($body.Length)`r`nConnection: close`r`nCache-Control: no-cache`r`nReferrer-Policy: strict-origin-when-cross-origin`r`n`r`n"
+        $headers = "HTTP/1.1 $status`r`n${locationHeader}Content-Type: $contentType; charset=utf-8`r`nContent-Length: $($body.Length)`r`nConnection: close`r`nCache-Control: no-cache`r`nReferrer-Policy: strict-origin-when-cross-origin`r`n`r`n"
         $bytes = [Text.Encoding]::ASCII.GetBytes($headers)
         $stream.Write($bytes, 0, $bytes.Length)
         if ($parts[0] -ne 'HEAD') { $stream.Write($body, 0, $body.Length) }
@@ -95,7 +105,7 @@ try {
     throw 'The preview did not respond. Run Preview.cmd again.'
   }
   if (-not $previewPort) { throw 'No free local preview port was found.' }
-  $previewUrl = "http://127.0.0.1:$previewPort/vod.html"
+  $previewUrl = "http://127.0.0.1:$previewPort/vod"
   Write-Output $previewUrl
   if (-not $NoBrowser) {
     Write-Host 'Opening your browser...'

@@ -534,7 +534,7 @@
       const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
       let renderer = null, scene = null, camera = null, gun = null;
-      let fullscreenView = null, viewReferenceWidth = 0;
+      let fullscreenView = null, windowInputScale = 1;
       let yaw = 0, pitch = 0;
       let playing = false, locked = false, paused = false;
       /* true only while the 3-2-1 is on screen. the 30s exercise clock is held
@@ -602,15 +602,15 @@
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         const fullscreen = !!document.fullscreenElement?.contains(canvas3d);
-        const displayWidth = Number(window.screen?.width) || window.innerWidth;
         const pixelRatio = window.devicePixelRatio || 1;
         if (fullscreen) fullscreenView = { width: w, pixelRatio };
         const reference = fullscreenView
-          ? fullscreenView.width * fullscreenView.pixelRatio / pixelRatio : displayWidth;
-        // Preserve fullscreen's screen-space aim scale in the smaller window.
-        // A narrower viewport crops the view instead of shrinking 103 degrees into it.
-        viewReferenceWidth = fullscreen || isTouch ? w : Math.max(w, window.innerWidth, reference);
-        camera.fov = sensitivityMath.projection(w, h, viewReferenceWidth).verticalFov;
+          ? fullscreenView.width * fullscreenView.pixelRatio / pixelRatio
+          : Number(window.screen?.width) || window.innerWidth;
+        // Keep the wider windowed view and compensate its smaller on-screen scale.
+        // Fullscreen and touch retain their existing input response.
+        windowInputScale = fullscreen || isTouch ? 1 : sensitivityMath.windowScale(w, Math.max(window.innerWidth, reference));
+        camera.fov = sensitivityMath.projection(w, h).verticalFov;
         camera.updateProjectionMatrix();
       };
       new ResizeObserver(() => { sizeRange(); resizeXhLayer(); }).observe(canvas3d);
@@ -1360,7 +1360,7 @@
         if (!locked) return;
         /* Apply every finite delta, including batched movements after a busy frame.
            Clipping a batch changes physical sensitivity during faster turns. */
-        const radPerCount = degPerCount(settings.sens) * (Math.PI / 180);
+        const radPerCount = degPerCount(settings.sens) * (Math.PI / 180) * windowInputScale;
         const mx = e.movementX, my = e.movementY;
         if (!Number.isFinite(mx) || !Number.isFinite(my)) return;
         yaw -= mx * radPerCount;
@@ -1642,7 +1642,7 @@
         get cameraYaw() { return yaw; },
         get cameraPitch() { return pitch; },
         get inputMode() { return mouseInputMode; },
-        get view() { return camera ? { aspect: camera.aspect, verticalFov: camera.fov, referenceWidth: viewReferenceWidth, horizontalFov: 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 180 / Math.PI } : null; }
+        get view() { return camera ? { aspect: camera.aspect, verticalFov: camera.fov, inputScale: windowInputScale, horizontalFov: 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 180 / Math.PI } : null; }
       };
       if (new URLSearchParams(location.search).get('quick') === '1') $('#btnQuick').click();
       window.KixotAnalytics?.track('dojo_opened');

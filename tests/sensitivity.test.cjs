@@ -26,20 +26,35 @@ test('invalid inputs cannot produce invalid camera rotations', () => {
   for (const value of [NaN, Infinity, -Infinity, '100']) assert.throws(() => math.degrees(value, 0.4), RangeError);
 });
 
-test('windowed views preserve fullscreen pixel movement without changing raw yaw', () => {
-  const full = math.projection(1920, 1080, 1920);
-  near(full.horizontalFov, 103);
-  for (const [width, height] of [[960, 580], [720, 400], [1280, 720]]) {
-    const windowed = math.projection(width, height, 1920);
-    near(windowed.focalLength, full.focalLength);
-    assert.ok(windowed.horizontalFov < full.horizontalFov);
+test('all viewport sizes show the full 103 degrees without cropping or changing raw yaw', () => {
+  const full = math.projection(1920, 1080);
+  for (const [width, height] of [[960, 580], [720, 400], [1280, 720], [390, 340]]) {
+    const view = math.projection(width, height);
+    near(view.horizontalFov, 103);
+    // Equal turns cross the same fraction of the viewport in both views.
     const angle = math.degrees(100, 0.145) * Math.PI / 180;
-    near(Math.tan(angle) * windowed.focalLength, Math.tan(angle) * full.focalLength);
+    near(Math.tan(angle) * view.focalLength / width, Math.tan(angle) * full.focalLength / 1920);
+    near(2 * Math.atan(Math.tan(view.verticalFov * Math.PI / 360) * width / height) * 180 / Math.PI, 103);
   }
 });
 
 test('projection keeps native fullscreen/touch FOV and rejects invalid dimensions', () => {
   near(math.projection(390, 340).horizontalFov, 103);
-  near(math.projection(1920, 1080, 960).horizontalFov, 103);
-  for (const value of [0, -1, NaN, Infinity]) assert.throws(() => math.projection(value, 600, 1920), RangeError);
+  near(math.projection(1920, 1080).horizontalFov, 103);
+  for (const value of [0, -1, NaN, Infinity]) {
+    assert.throws(() => math.projection(value, 600), RangeError);
+    assert.throws(() => math.projection(960, value), RangeError);
+  }
+});
+
+test('window compensation preserves fullscreen screen-space aim speed without zoom', () => {
+  const full = math.projection(1920, 1080);
+  for (const [width, height] of [[960, 580], [720, 400], [1280, 720]]) {
+    const view = math.projection(width, height), gain = math.windowScale(width, 1920);
+    near(view.focalLength * gain, full.focalLength);
+    near(view.horizontalFov, full.horizontalFov);
+  }
+  near(math.windowScale(1920, 1920), 1);
+  near(math.windowScale(1920, 960), 1);
+  for (const value of [0, -1, NaN, Infinity]) assert.throws(() => math.windowScale(value, 1920), RangeError);
 });

@@ -10,12 +10,20 @@ const portIndex = process.argv.indexOf('--port');
 const port = portIndex >= 0 ? Number(process.argv[portIndex + 1]) : 4175;
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid preview port.');
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.woff2': 'font/woff2', '.woff': 'font/woff', '.txt': 'text/plain', '.xml': 'application/xml', '.ico': 'image/x-icon' };
+const routes = require('../vercel.json').routes.filter(route => route.src);
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://127.0.0.1:' + port);
     if (url.pathname === '/api/analyze-rounds') return await handler(req, res);
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return; }
-    const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'index.html';
+    const route = routes.find(route => new RegExp('^' + route.src + '$').test(url.pathname));
+    if (route?.status) {
+      const location = route.headers?.Location;
+      res.writeHead(route.status, location ? { Location: url.pathname.replace(new RegExp('^' + route.src + '$'), location) + url.search } : {});
+      res.end(); return;
+    }
+    const pathname = route?.dest ? url.pathname.replace(new RegExp('^' + route.src + '$'), route.dest) : url.pathname;
+    const relative = decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html';
     const file = path.resolve(root, relative), extension = path.extname(file).toLowerCase();
     const allowed = /^(?:(?:index|dojo|vod|training)\.html|favicon\.ico|robots\.txt|sitemap\.xml|(?:css|js|assets|pages)\/)/.test(relative);
     if (!allowed || relative.split(/[\\/]/).some(part => part.startsWith('.')) || !file.startsWith(root + path.sep) || !types[extension] || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end('Not found.'); return; }
@@ -24,4 +32,4 @@ const server = http.createServer(async (req, res) => {
   } catch { if (!res.headersSent) res.writeHead(400); res.end(); }
 });
 server.requestTimeout = 600000;
-server.listen(port, '127.0.0.1', () => console.log('http://127.0.0.1:' + port + '/vod.html'));
+server.listen(port, '127.0.0.1', () => console.log('http://127.0.0.1:' + port + '/vod'));

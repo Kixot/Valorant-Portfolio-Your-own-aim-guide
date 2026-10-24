@@ -9,7 +9,7 @@ const pages = ['index.html', 'dojo.html', 'vod.html'];
 
 test('search metadata identifies each public page and exposes crawlable image previews', () => {
   for (const file of pages) {
-    const html = read(file), url = origin + (file === 'index.html' ? '/' : '/' + file);
+    const html = read(file), url = origin + (file === 'index.html' ? '/' : '/' + file.replace('.html', ''));
     assert.ok(html.includes(`<link rel="canonical" href="${url}"`));
     assert.ok(html.includes(`<meta property="og:url" content="${url}"`));
     assert.ok(html.includes('property="og:site_name" content="Kixot"'));
