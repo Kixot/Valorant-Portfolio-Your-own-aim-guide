@@ -101,8 +101,6 @@
   const syncControls = () => {
     $('markRound').disabled = !loaded; $('tagMistake').disabled = !loaded;
     ['exportReviewText', 'exportReviewJson', 'shareReview', 'deleteReview'].forEach(id => { $(id).disabled = !current; });
-    $('analyzeRounds').disabled = !loaded || !!analysisTask;
-    $('analyzeRounds').textContent = current?.source.type === 'file' ? 'Analyze local video' : 'Analyze rounds';
     $('localAnalyzerOptions').hidden = current?.source.type !== 'file';
     $('localAnalyzer').disabled = !!analysisTask;
     $('hudOptions').hidden = $('localAnalyzer').value !== 'device';
@@ -114,7 +112,7 @@
     loaded = true; $('playerEmpty').hidden = true;
     clearTimeout(playerTimer);
     persist(current); render(); message('Video ready.'); analytics('video_loaded');
-    if (current.source.type === 'youtube') startAnalysis(true);
+    startAnalysis(true);
   };
   const cleanPlayer = () => {
     stopAnalysis();
@@ -286,7 +284,6 @@
   });
   const startAnalysis = async automatic => {
     if (!loaded || !current || analysisTask) return;
-    if (automatic && current.source.type === 'file') return;
     const key = current.key, expected = token;
     if (automatic && (current.detectedRounds.length || analysisTried.has(key))) return;
     if (!automatic && current.detectedRounds.length && !confirmAction('Replace the detected round timestamps? Your custom points stay saved.')) return;
@@ -320,7 +317,7 @@
         if (expected !== token || current?.key !== key || task.signal.aborted) return;
         const validated = core.validateDetectedRounds(rounds);
         if (validated.length) { current.detectedRounds = validated; save(); }
-        $('roundAnalysisStatus').textContent = validated.length ? 'HUD boundaries detected. Review them for replays and delayed score updates.' : 'No complete rounds could be read. Adjust HUD boxes around the timer and scores, then scan again. Existing markers were kept.';
+        $('roundAnalysisStatus').textContent = validated.length ? 'Round start times detected. Review them for replays and delayed score updates.' : 'No complete rounds could be read. Adjust the HUD boxes around the timer and scores, then close that panel to scan again. Existing markers were kept.';
         if (!validated.length) $('hudOptions').open = true;
         return;
       }
@@ -352,7 +349,7 @@
       while (['processing', 'file_processing'].includes(result.status)) {
         if (expected !== token || current?.key !== key || task.signal.aborted) return;
         if (result.status === 'file_processing') {
-          if (performance.now() - started > 1500000) throw new Error('Google is still preparing this file. Analyze local video checks it again.');
+          if (performance.now() - started > 1500000) throw new Error('Google is still preparing this file. Load the video again to check it.');
           setPhase('Google is preparing the uploaded video.');
           await wait(15000, task.signal);
           while (document.hidden) await wait(2000, task.signal);
@@ -361,7 +358,7 @@
         if (typeof result.job !== 'string') throw new Error('Round analysis returned an invalid job.');
         job = result.job; try { sessionStorage.setItem(jobKey, job); } catch {}
         setPhase(result.message || 'Analyzing gameplay and round transitions.');
-        if (performance.now() - started > 1500000) throw new Error('Analysis is taking longer than expected. Click Analyze rounds to check the saved job again.');
+        if (performance.now() - started > 1500000) throw new Error('Analysis is taking longer than expected. Load the video again to check the saved job.');
         await wait(Math.max(15, Math.min(60, Number(result.pollAfter) || 15)) * 1000, task.signal);
         while (document.hidden) await wait(2000, task.signal);
         result = await window.KixotRoundAnalysis.poll(job, task.signal);
@@ -381,9 +378,10 @@
       }
     } finally { clearInterval(elapsedTimer); if (analysisTask === task) { analysisTask = null; syncControls(); } }
   };
-  $('analyzeRounds').addEventListener('click', () => startAnalysis(false));
-  $('localAnalyzer').addEventListener('change', syncControls);
-  $('cancelRoundAnalysis').addEventListener('click', () => { const device = current?.source.type === 'file' && $('localAnalyzer').value === 'device'; stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = device ? 'HUD scan stopped. Existing markers were kept.' : 'Stopped waiting. Analyze rounds resumes the saved job if available.'; });
+  // Detection starts by itself when a video is ready. These two rerun it after a setting changes.
+  $('localAnalyzer').addEventListener('change', () => { syncControls(); if (loaded && current && !current.detectedRounds.length) startAnalysis(false); });
+  $('hudOptions').addEventListener('toggle', () => { if (!$('hudOptions').open && loaded && current?.source.type === 'file' && !current.detectedRounds.length) startAnalysis(false); });
+  $('cancelRoundAnalysis').addEventListener('click', () => { const device = current?.source.type === 'file' && $('localAnalyzer').value === 'device'; stopAnalysis(); syncControls(); $('roundAnalysisStatus').textContent = device ? 'HUD scan stopped. Existing markers were kept.' : 'Stopped waiting. Loading the video again resumes the saved job if available.'; });
   const deleteSaved = review => {
     if (!confirmAction('Delete this saved review and all its tags?')) return;
     try { localStorage.removeItem(prefix + review.key); damaged.delete(review.key); } catch { warning('Removed from this visit only. Browser storage could not delete the saved copy.'); }

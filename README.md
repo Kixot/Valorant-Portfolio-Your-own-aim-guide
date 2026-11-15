@@ -43,3 +43,9 @@ The on-device detector passed a real browser OCR check using a generated recordi
 Run all dependency-free checks with `node --test tests/*.test.cjs`. Browser tests require separately available Playwright and Chrome, without adding them to the website. Generated screenshots and reports go to ignored `.task-test-output/`, which can be removed after testing. Current results are in [the deployment audit](docs/site-audit.md).
 
 Backups: `713f52e` is the original site; `b780288` is the prompt 1 state before the full Dojo work.
+
+The Dojo has a Vandal skin picker. Skin names, tiers and renders load from valorant-api.com at runtime, grouped by tier, and the choice persists locally. Kill streaks play five rising chimes generated in the browser, the fifth being the ace, and a missed shot restarts the streak. `assets/dojo-assets.json` optionally lists replacement sound files in `assets/audio/` (`killSounds`, first to fifth kill) and 3D models in `assets/models/vandal/` (`vandalModels`, skin name to a `.glb` file, or `{ "file", "rotateY", "scale" }`). No models or audio files are bundled, and the model path has not been exercised with a real file.
+
+VOD round detection starts by itself when a video is ready; there is no Analyze button. Changing the analyzer or closing the HUD box panel reruns it when no rounds were found. The browser tests that click `#analyzeRounds` predate this change and need updating before they are run again.
+
+The VOD page has a Lineups section: every competitive map's minimap and all agents from valorant-api.com, YouTube and Google search links for the chosen map and agent, and a marker editor (stand point, landing point, name, ability, optional YouTube link). Lineups are saved in the browser under `kixot_lineups_v1` with JSON export and import. No lineup positions ship with the site.

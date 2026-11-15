@@ -98,7 +98,7 @@
       <div id="reviewWorkspace" hidden>
         <div class="vod-card" id="localAnalysisConfirm" role="dialog" aria-label="Send recording for analysis" hidden><p>Send this video to Google for AI round analysis? Free-tier inputs may be used to improve Google products.</p><div class="vod-actions"><button class="rbtn" id="confirmLocalAnalysis" type="button">Send and analyze</button><button class="rbtn" id="cancelLocalAnalysis" type="button">Cancel</button></div></div>
         <section class="vod-card" aria-label="Detected rounds">
-          <h3>Rounds</h3><p class="vod-empty" id="analysisHelp">YouTube analysis uses Google. Local recordings can be scanned on this device without an upload or API key. Review detected boundaries.</p>
+          <h3>Rounds</h3><p class="vod-empty" id="analysisHelp">Round start times are detected automatically when a video loads. Local recordings are scanned on this device. YouTube uses Google.</p>
           <div id="localAnalyzerOptions" hidden>
             <label for="localAnalyzer">Analyzer</label><select id="localAnalyzer"><option value="device">On this device</option><option value="cloud">Google AI (upload)</option></select>
             <details id="hudOptions"><summary>Adjust HUD boxes</summary><p class="vod-empty">Drag a box around each score and the round timer. Keep only its digits inside.</p>
@@ -108,7 +108,7 @@
               <button class="rbtn vod-mini" type="button" id="resetHud">Reset HUD boxes</button><p id="hudStatus" class="vod-status" role="status"></p>
             </details>
           </div>
-          <div class="vod-actions"><button class="rbtn" type="button" id="analyzeRounds">Analyze rounds</button><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop analysis</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul>
+          <div class="vod-actions"><button class="rbtn" type="button" id="cancelRoundAnalysis" hidden>Stop analysis</button></div><p id="roundAnalysisStatus" class="vod-status" role="status"></p><ul class="vod-entries" id="detectedRoundList"></ul>
         </section>
         <form class="vod-card vod-tag-form" id="mistakeForm" hidden>
           <label for="mistakeTime">Time (seconds or mm:ss)<input id="mistakeTime" type="text" inputmode="decimal" required maxlength="16" /></label>
@@ -129,6 +129,39 @@
       </div>
       <div class="vod-card" id="manualShare" hidden><label for="shareText">Copy review text</label><textarea id="shareText" rows="8" readonly></textarea><button class="rbtn" id="closeShare" type="button">Close</button></div>
       <details class="vod-card vod-saved"><summary>Saved reviews</summary><p id="savedEmpty" class="vod-empty">No saved reviews yet.</p><ul id="savedReviews" class="vod-entries"></ul><div class="vod-actions"><button class="rbtn" id="exportAllReviews" type="button" disabled>Export all JSON</button><button class="rbtn" id="importReviewsButton" type="button">Import JSON</button><input id="importReviews" type="file" accept=".json,application/json" hidden /></div></details>
+    </section>
+    <section class="section" id="lineups" aria-label="Lineup guides">
+      <div class="section__head"><h2 class="section__title">Lineups</h2></div>
+      <div class="vod-card">
+        <div class="lineup-pick">
+          <label for="lineupMap">Map<select id="lineupMap" disabled><option>Loading</option></select></label>
+          <label for="lineupAgent">Agent<select id="lineupAgent" disabled><option>Loading</option></select></label>
+          <img id="lineupAgentIcon" class="lineup-agent" alt="" width="64" height="64" hidden />
+        </div>
+        <p id="lineupStatus" class="vod-status" role="status" aria-live="polite"></p>
+        <div class="lineup-grid">
+          <div class="lineup-board" id="lineupBoard">
+            <img id="lineupMapImage" alt="" />
+            <svg id="lineupLayer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="lineup-side">
+            <div class="vod-actions" id="lineupLinks" hidden>
+              <a class="rbtn" id="lineupYoutube" target="_blank" rel="noopener noreferrer">Videos on YouTube</a>
+              <a class="rbtn" id="lineupGoogle" target="_blank" rel="noopener noreferrer">Search Google</a>
+            </div>
+            <div class="vod-actions"><button class="rbtn rbtn--solid" id="lineupAdd" type="button" disabled>Add a lineup</button></div>
+            <form class="vod-tag-form" id="lineupForm" hidden>
+              <label for="lineupName">Name<input id="lineupName" type="text" maxlength="80" required /></label>
+              <label for="lineupAbility">Ability<select id="lineupAbility"></select></label>
+              <label for="lineupVideo">YouTube link (optional)<input id="lineupVideo" type="text" inputmode="url" maxlength="300" /></label>
+              <div class="vod-actions"><button class="rbtn rbtn--solid" type="submit">Save lineup</button><button class="rbtn" id="lineupCancel" type="button">Cancel</button></div>
+            </form>
+            <p id="lineupEmpty" class="vod-empty">No lineups saved for this map and agent yet.</p>
+            <ul class="vod-entries" id="lineupList"></ul>
+            <div class="vod-actions"><button class="rbtn vod-mini" id="lineupExport" type="button">Export JSON</button><button class="rbtn vod-mini" id="lineupImportButton" type="button">Import JSON</button><input id="lineupImport" type="file" accept=".json,application/json" hidden /></div>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
     <footer class="footer">
@@ -151,5 +184,6 @@
   <script src="js/hud-analysis.js" defer></script>
   <script src="js/hud-settings.js" defer></script>
   <script src="js/vod.js" defer></script>
+  <script src="js/lineups.js" defer></script>
 </body>
 </html>

@@ -683,6 +683,8 @@
         scene.add(strip2);
 
         gun = new THREE.Group();
+        gunBox = new THREE.Group();
+        gun.add(gunBox);
         const metal = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.45, metalness: 0.75 });
         const dark = new THREE.MeshStandardMaterial({ color: 0x0f0f0f, roughness: 0.6, metalness: 0.4 });
         const wood = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.05 });
@@ -691,7 +693,7 @@
           const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
           m.position.set(x, y, z);
           if (rx) m.rotation.x = rx;
-          gun.add(m);
+          gunBox.add(m);
           return m;
         };
         box(0.09, 0.13, 0.62, metal, 0, 0, -0.18);
@@ -708,10 +710,54 @@
         gun.rotation.y = -0.06;
         camera.add(gun);
         scene.add(camera);
+        applySkinModel(window.KixotSkin);
 
         sizeRange();
         for (let i = 0; i < MODES[mode].field; i++) spawnTarget();
       };
+
+      /* optional 3d skin models: a skin only swaps the gun when assets/dojo-assets.json
+         lists a model file for it. anything missing or broken keeps the built-in gun. */
+      let gunBox = null, gunModel = null, skinToken = 0, gltfLoad = null;
+      const loadGltf = () => {
+        if (THREE.GLTFLoader) return Promise.resolve();
+        if (gltfLoad) return gltfLoad;
+        gltfLoad = new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+          s.onload = () => resolve();
+          s.onerror = () => { gltfLoad = null; reject(new Error('model loader unreachable')); };
+          document.head.appendChild(s);
+        });
+        return gltfLoad;
+      };
+      const applySkinModel = (skin) => {
+        if (!gun || !window.THREE) return;
+        const expected = ++skinToken;
+        if (gunModel) { gun.remove(gunModel); gunModel = null; }
+        gunBox.visible = true;
+        if (!skin || !skin.model) return;
+        loadGltf().then(() => new Promise((resolve, reject) => new THREE.GLTFLoader().load(skin.model.url, resolve, undefined, reject))).then((gltf) => {
+          if (expected !== skinToken) return;
+          const model = gltf.scene;
+          /* fan models come in any size and facing: fit the longest side to the
+             built-in gun's length and point it down the barrel axis (-z). */
+          let size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+          if (size.x > size.z) model.rotation.y = Math.PI / 2;
+          model.rotation.y += skin.model.rotateY * Math.PI / 180;
+          const holder = new THREE.Group();
+          holder.add(model);
+          size = new THREE.Box3().setFromObject(holder).getSize(new THREE.Vector3());
+          const longest = Math.max(size.x, size.y, size.z) || 1;
+          holder.scale.setScalar(1.8 / longest * skin.model.scale);
+          const center = new THREE.Box3().setFromObject(holder).getCenter(new THREE.Vector3());
+          holder.position.set(-center.x, -center.y - 0.03, -center.z - 0.48);
+          gunModel = holder;
+          gun.add(holder);
+          gunBox.visible = false;
+        }).catch(() => { if (expected === skinToken) gunBox.visible = true; });
+      };
+      document.addEventListener('kixot:skin', (event) => applySkinModel(event.detail));
 
       /* shared geometry + material caches: zero allocations while playing = no gc stutter */
       const geoCache = {};
@@ -796,8 +842,8 @@
             // Replace in the same shot so pausing cannot cancel a pending spawn.
             spawnTarget();
             burst(hitArr[0].point);
-          }
-          beep(760 + Math.min(500, streak * 40), 0.06, 'square', 0.05);
+            killSound(streak);
+          } else beep(760 + Math.min(500, streak * 40), 0.06, 'square', 0.05);
         } else if (mode !== 'track') {
           streak = 0;
           beep(140, 0.09, 'sawtooth', 0.04);
@@ -834,6 +880,45 @@
           g.gain.exponentialRampToValueAtTime(0.0001, beep.ctx.currentTime + (dur || 0.08));
           o.connect(g); g.connect(beep.ctx.destination);
           o.start(); o.stop(beep.ctx.currentTime + (dur || 0.08));
+        } catch (e) { /* shh */ }
+      };
+
+      /* kill streak: five rising chimes, the fifth is the ace. a missed shot zeroes
+         the streak in shoot(), so the next hit starts again from the first chime.
+         files listed under killSounds in assets/dojo-assets.json replace the chimes. */
+      const KILL_NOTES = [523.25, 659.25, 783.99, 987.77, 1174.66];
+      let killClips = [];
+      (window.KixotDojoAssets || Promise.resolve({})).then((extra) => {
+        const list = Array.isArray(extra.killSounds) ? extra.killSounds.slice(0, 5) : [];
+        killClips = list.map((file) => {
+          if (typeof file !== 'string' || !/^[\w.-]+\.(mp3|ogg|wav|m4a)$/i.test(file)) return null;
+          const clip = new Audio('assets/audio/' + file);
+          clip.preload = 'auto';
+          return clip;
+        });
+      }).catch(() => {});
+      const killSound = (count) => {
+        const level = (Math.max(1, count) - 1) % 5;
+        const clip = killClips[level];
+        if (clip) {
+          try { clip.currentTime = 0; const played = clip.play(); if (played) played.catch(() => {}); return; } catch (e) { /* fall through to the chime */ }
+        }
+        try {
+          if (!beep.ctx) beep.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = beep.ctx;
+          const tone = (freq, at, dur, vol, type) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = type;
+            o.frequency.value = freq;
+            g.gain.setValueAtTime(vol, ctx.currentTime + at);
+            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + dur);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + dur);
+          };
+          tone(KILL_NOTES[level], 0, 0.24, 0.075, 'triangle');
+          tone(KILL_NOTES[level] * 2, 0, 0.14, 0.03, 'sine');
+          if (level === 4) [1318.51, 1567.98, 2093].forEach((freq, i) => tone(freq, 0.09 * (i + 1), 0.34, 0.06, 'triangle'));
         } catch (e) { /* shh */ }
       };
 

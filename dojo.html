@@ -207,6 +207,16 @@
 
       </details>
 
+      <details class="dojo-expand" id="skinSettings">
+        <summary>Vandal skin</summary>
+        <div class="set-row">
+          <label for="skinSelect">skin</label>
+          <select id="skinSelect" disabled><option>Standard Vandal</option></select>
+        </div>
+        <div class="skin-preview"><img id="skinPreview" alt="" hidden /></div>
+        <p class="skin-status" id="skinStatus" role="status"></p>
+      </details>
+
       <div class="modes-row">
         <button class="mode-btn is-active" data-mode="flick" type="button">Flick</button>
         <button class="mode-btn" data-mode="precision" type="button">Precision</button>
@@ -225,6 +235,7 @@
             <div class="session-banner" id="sessionBanner"></div>
           </div>
           <div class="range-note" id="rangeNote">click the range to lock in</div>
+          <img class="skin-badge" id="skinBadge" alt="" hidden />
           <div class="range-overlay" id="overlay">
             <h3 id="ovTitle"><span class="accent">FLICK</span> RANGE</h3>
             <p id="ovDesc"></p>
@@ -314,6 +325,7 @@
   <script src="js/navigation.js" defer></script>
   <script src="js/sensitivity.js" defer></script>
   <script src="js/progress.js" defer></script>
+  <script src="js/dojo-skins.js" defer></script>
   <script src="js/training.js" defer></script>
 </body>
 </html>
