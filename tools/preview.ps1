@@ -5,9 +5,7 @@ $vodScript = [IO.File]::ReadAllText((Join-Path $projectRoot 'js\vod.js'))
 $nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
 $nodePath = if ($nodeCommand) { $nodeCommand.Source } else { Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' }
 $hasNode = [IO.File]::Exists($nodePath)
-$privateSetup = Join-Path $projectRoot '.env'
-$setupStamp = if ([IO.File]::Exists($privateSetup)) { [string]([DateTimeOffset]([IO.File]::GetLastWriteTimeUtc($privateSetup))).ToUnixTimeMilliseconds() } else { '0' }
-$codeStamp = (@('server\preview.cjs', 'server\round-analysis.cjs', 'server\local-video.cjs') | ForEach-Object { [string]([DateTimeOffset]([IO.File]::GetLastWriteTimeUtc((Join-Path $projectRoot $_)))).ToUnixTimeMilliseconds() }) -join '-'
+$codeStamp = [string]([DateTimeOffset]([IO.File]::GetLastWriteTimeUtc((Join-Path $projectRoot 'server\preview.cjs')))).ToUnixTimeMilliseconds()
 
 if ($Serve) {
   # Development-only static file preview using built-in Windows/.NET facilities.
@@ -67,9 +65,9 @@ function Test-ProjectPreview([int]$Candidate) {
     $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Candidate/js/vod.js" -TimeoutSec 2
     if ($response.StatusCode -ne 200 -or $response.Content -ne $vodScript) { return $false }
     if ($hasNode) {
-      $info = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Candidate/api/analyze-rounds" -TimeoutSec 2
+      $info = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Candidate/__preview" -TimeoutSec 2
       $serviceInfo = $info.Content | ConvertFrom-Json
-      return $serviceInfo.service -eq 'kixot-analysis-v1' -and $serviceInfo.setupStamp -eq $setupStamp -and $serviceInfo.codeStamp -eq $codeStamp
+      return $serviceInfo.service -eq 'kixot-preview-v1' -and $serviceInfo.codeStamp -eq $codeStamp
     }
     return $true
   } catch { return $false }

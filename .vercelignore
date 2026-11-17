@@ -1,4 +1,4 @@
-# Upload only the site and the files required by the analysis function.
+# Upload only the static site.
 /*
 !index.html
 !dojo.html
@@ -10,14 +10,11 @@
 !css/
 !js/
 !assets/
-!api/
-!server/
 !package.json
 !package-lock.json
 !THIRD_PARTY_NOTICES.md
 !robots.txt
 !sitemap.xml
 !vercel.json
-server/preview.cjs
 **/.env
 **/.env.*
