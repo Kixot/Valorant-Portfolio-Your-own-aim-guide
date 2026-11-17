@@ -1,0 +1,64 @@
+.vod-page .lu { max-width: 1500px; }
+.lu-app { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 18px; align-items: start; }
+.lu-app:has(.lu-detail:not([hidden])) { grid-template-columns: 270px minmax(0, 1fr) 360px; }
+.lu-panel, .lu-detail { background: #050505; border: 1px solid var(--line); padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.lu-panel h3 { font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.lu-choices { display: grid; gap: 6px; }
+.lu-maps { grid-template-columns: 1fr 1fr; }
+.lu-agents { grid-template-columns: repeat(6, 1fr); }
+.lu-abilities { grid-template-columns: repeat(5, 1fr); }
+.lu-sides { grid-template-columns: repeat(3, 1fr); }
+.lu-choice { font: inherit; font-size: 12px; color: #bbb; background: #000; border: 1px solid var(--line); padding: 8px 6px; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lu-choice:hover { border-color: var(--line-strong); color: #fff; }
+.lu-choice.is-active { background: #fff; color: #000; border-color: #fff; }
+.lu-choice.lu-icon { padding: 3px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.lu-choice.lu-icon img { width: 100%; height: 100%; object-fit: contain; filter: grayscale(1); opacity: 0.6; }
+.lu-choice.lu-icon:hover img, .lu-choice.lu-icon.is-active img { filter: none; opacity: 1; }
+.lu-choice.lu-icon.is-active { background: #111; border-color: #fff; }
+.lu-main { min-width: 0; display: grid; gap: 10px; }
+.lu-bar { display: flex; gap: 16px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; min-height: 22px; }
+.lu-title { font-weight: 700; font-size: 15px; color: #fff; }
+.lu-stage { position: relative; aspect-ratio: 1; max-height: 82vh; margin: 0 auto; width: 100%; max-width: 82vh; background: #000; border: 1px solid var(--line); overflow: hidden; cursor: grab; touch-action: none; user-select: none; }
+.lu-stage.is-dragging { cursor: grabbing; }
+.lu-stage.is-placing { cursor: crosshair; border-color: #fff; }
+.lu-canvas { position: absolute; inset: 0; transform-origin: 50% 50%; --inv: 1; }
+.lu-canvas img#luMapImage { width: 100%; height: 100%; object-fit: contain; display: block; filter: grayscale(1) contrast(1.1); pointer-events: none; }
+.lu-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lu-line { stroke: #fff; stroke-width: 2px; vector-effect: non-scaling-stroke; opacity: 0.55; stroke-dasharray: 6 5; }
+.lu-line.is-hint { opacity: 0.35; }
+.lu-line.is-active, .lu-line.is-link.is-active { opacity: 1; stroke-dasharray: none; stroke-width: 4px; }
+.lu-mark { position: absolute; width: 30px; height: 30px; padding: 4px; transform: translate(-50%, -50%) scale(var(--inv)); border-radius: 50%; border: 2px solid #fff; background: #000; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.lu-mark img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.lu-land { z-index: 2; }
+.lu-land.lu-face { padding: 0; overflow: hidden; }
+.lu-land.lu-face img { object-fit: cover; filter: none; }
+.lu-line.is-link { pointer-events: stroke; cursor: pointer; stroke-width: 4px; }
+.lu-head { display: flex; gap: 10px; align-items: center; }
+.lu-head img { width: 34px; height: 34px; object-fit: contain; border: 1px solid var(--line); padding: 4px; background: #000; }
+.lu-land:hover, .lu-land.is-open { outline: 2px solid #fff; outline-offset: 3px; }
+.lu-stand { width: 34px; height: 34px; padding: 0; overflow: hidden; z-index: 3; border-color: #999; }
+.lu-stand img { object-fit: cover; }
+.lu-stand:hover, .lu-stand.is-active { border-color: #fff; outline: 2px solid #fff; outline-offset: 3px; }
+.lu-stage.has-open .lu-land:not(.is-open) { opacity: 0.25; }
+.lu-count { position: absolute; top: -8px; right: -8px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #fff; color: #000; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.lu-empty { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; font-size: 13px; color: #bbb; pointer-events: none; }
+.lu-zoom { position: absolute; right: 12px; top: 12px; display: grid; gap: 6px; z-index: 5; }
+.lu-zoom button { width: 36px; height: 36px; font: inherit; font-size: 13px; font-weight: 700; color: #fff; background: #000; border: 1px solid var(--line-strong); cursor: pointer; }
+.lu-zoom button:hover { background: #fff; color: #000; }
+.lu-detail h3 { font-size: 18px; }
+.lu-meta { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lu-desc { font-size: 14px; line-height: 1.6; color: #ccc; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lu-video { aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--line); }
+.lu-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+.lu-detail .vod-tag-form, #luDetailBody { display: grid; gap: 12px; }
+.lu-detail .vod-tag-form label { display: grid; gap: 8px; }
+@media (max-width: 1100px) {
+  .lu-app, .lu-app:has(.lu-detail:not([hidden])) { grid-template-columns: 1fr; }
+  .lu-agents { grid-template-columns: repeat(10, 1fr); }
+  .lu-maps { grid-template-columns: repeat(4, 1fr); }
+  .lu-abilities { grid-template-columns: repeat(5, 48px); }
+}
+@media (max-width: 560px) { .lu-agents { grid-template-columns: repeat(6, 1fr); } .lu-maps { grid-template-columns: 1fr 1fr; } }
+.lu-land.lu-dot { width: 16px; height: 16px; padding: 0; background: #fff; border: 2px solid #000; }
+.lu-land.lu-dot:hover, .lu-land.lu-dot.is-open { outline-offset: 2px; }
+.lu-app.is-show-all .lu-agents, .lu-app.is-show-all .lu-abilities, .lu-app.is-show-all .lu-sides { opacity: 0.45; }

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>Lineups | Kixot</title>
+  <meta name="description" content="Valorant lineup guides on every map. Pick a map and agent, see each lineup drawn on the minimap and watch its video." />
+  <link rel="canonical" href="https://www.kixotgg.com/lineups" />
+  <meta property="og:site_name" content="Kixot" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Lineups | Kixot" />
+  <meta property="og:description" content="Valorant lineup guides on every map. Pick a map and agent, see each lineup drawn on the minimap and watch its video." />
+  <meta property="og:url" content="https://www.kixotgg.com/lineups" />
+  <meta property="og:image" content="https://www.kixotgg.com/assets/img/og.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Kixot wordmark on a black background" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Lineups | Kixot" />
+  <meta name="twitter:description" content="Valorant lineup guides on every map. Pick a map and agent, see each lineup drawn on the minimap and watch its video." />
+  <meta name="twitter:image" content="https://www.kixotgg.com/assets/img/og.png" />
+  <meta name="twitter:image:alt" content="Kixot wordmark on a black background" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="stylesheet" href="css/site.css" />
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/navigation.css" />
+  <link rel="stylesheet" href="css/vod.css" />
+  <link rel="stylesheet" href="css/lineups.css" />
+  <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png" />
+  <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48 96x96" href="favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "url": "https://www.kixotgg.com/lineups",
+  "name": "Lineups | Kixot",
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://www.kixotgg.com/#website",
+    "url": "https://www.kixotgg.com/",
+    "name": "Kixot"
+  },
+  "description": "Valorant lineup guides on every map. Pick a map and agent, see each lineup drawn on the minimap and watch its video.",
+  "isAccessibleForFree": true,
+  "creator": {
+    "@type": "Person",
+    "@id": "https://www.kixotgg.com/#kixot",
+    "name": "Kixot"
+  }
+}
+  </script>
+</head>
+<body class="tool-page vod-page">
+  <div id="cur" aria-hidden="true"></div>
+  <header>
+  <nav class="ff" aria-label="Site">
+    <div class="ff__folder">
+      <div class="ff__back"></div>
+      <button type="button" class="ff__front" aria-label="Open site menu" aria-expanded="false" aria-controls="siteMenu"><span class="ff__label">Kixot</span></button>
+      <div class="ff__items" id="siteMenu">
+        <a class="ff__item" href="/#top" data-section="top">home</a>
+        <a class="ff__item" href="/#about" data-section="about">about</a>
+        <a class="ff__item" href="/dojo" data-section="dojo">dojo</a>
+        <a class="ff__item" href="/vod">vod review</a>
+        <a class="ff__item" href="/lineups" aria-current="page">lineups</a>
+        <a class="ff__item ff__item--cta" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">subs</a>
+      </div>
+    </div>
+  </nav>
+  <a class="rbtn vod-home" href="/">Back to home</a>
+  </header>
+  <main id="top">
+    <section class="section lu" id="lineups" aria-label="Lineup guides">
+      <div class="section__head"><h2 class="section__title">Lineups</h2></div>
+      <div class="lu-app" id="luApp">
+        <aside class="lu-panel" aria-label="Filters">
+          <h3>Map</h3><div class="lu-choices lu-maps" id="luMaps"></div>
+          <h3>Agent</h3><div class="lu-choices lu-agents" id="luAgents"></div>
+          <h3>Ability</h3><div class="lu-choices lu-abilities" id="luAbilities"></div>
+          <h3>Side</h3><div class="lu-choices lu-sides" id="luSides"></div>
+          <div class="vod-actions"><button class="rbtn rbtn--solid" id="luAdd" type="button" disabled>Add a lineup</button></div>
+          <div class="vod-actions"><button class="rbtn" id="luShowAll" type="button">Show all saved lineups</button></div>
+          <div class="vod-actions"><a class="rbtn vod-mini" id="luYoutube" target="_blank" rel="noopener noreferrer">Videos on YouTube</a><a class="rbtn vod-mini" id="luGoogle" target="_blank" rel="noopener noreferrer">Search Google</a></div>
+        </aside>
+        <div class="lu-main">
+          <div class="lu-bar"><p class="lu-title" id="luTitle"></p><p id="luStatus" class="vod-status" role="status" aria-live="polite"></p></div>
+          <div class="lu-stage" id="luStage">
+            <div class="lu-canvas" id="luCanvas">
+              <img id="luMapImage" alt="" draggable="false" />
+              <svg id="luLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div id="luMarks"></div>
+            </div>
+            <p class="lu-empty" id="luEmpty" hidden>No lineups here yet. Add one.</p>
+            <div class="lu-zoom"><button type="button" id="luZoomIn" aria-label="Zoom in">+</button><button type="button" id="luZoomOut" aria-label="Zoom out">-</button><button type="button" id="luZoomReset" aria-label="Reset zoom">1:1</button></div>
+          </div>
+        </div>
+        <aside class="lu-detail" id="luDetail" aria-label="Lineup" hidden>
+          <div id="luDetailBody"></div>
+          <form class="vod-tag-form" id="luForm" hidden>
+            <label for="luFormName">Name<input id="luFormName" type="text" maxlength="80" required /></label>
+            <label for="luFormAbility">Ability<select id="luFormAbility"></select></label>
+            <label for="luFormSide">Side<select id="luFormSide"><option value="">Both</option><option value="attack">Attack</option><option value="defense">Defense</option></select></label>
+            <label for="luFormVideo">YouTube link (optional)<input id="luFormVideo" type="text" inputmode="url" maxlength="300" /></label>
+            <label for="luFormDesc">Notes (optional)<textarea id="luFormDesc" rows="3" maxlength="600"></textarea></label>
+            <div class="vod-actions"><button class="rbtn rbtn--solid" type="submit">Save lineup</button><button class="rbtn" id="luFormCancel" type="button">Cancel</button></div>
+          </form>
+        </aside>
+      </div>
+    </section>
+  </main>
+    <footer class="footer">
+      <img class="footer__emblem" src="assets/favicon.svg" alt="" width="56" height="56" />
+      <p class="footer__logo">KIX<span class="accent">OT</span></p>
+      <div class="footer__actions">
+        <a class="rbtn" href="https://www.youtube.com/kixot" target="_blank" rel="noopener">YouTube</a>
+        <a class="rbtn" href="/#dojo">The Dojo</a>
+        <a class="rbtn" href="/#vod">VOD Review</a>
+        <a class="rbtn" href="/#lineups">Lineups</a>
+        <a class="rbtn" href="https://tracker.gg/valorant/profile/riot/srk%20kixot%23don/overview?platform=pc&playlist=competitive&season=8102cd81-43a0-d0d7-bd59-47b8fe9bed1b" target="_blank" rel="noopener">tracker.gg</a>
+        <button class="copy-btn" id="copyRiot" data-copy="srk kixot#don" type="button">srk kixot#don</button>
+        <span class="copy-toast" id="copyToast">copied !!</span>
+      </div>
+    </footer>
+  <script src="js/analytics.js" defer></script>
+  <script src="js/shared.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+  <script src="js/lineups.js" defer></script>
+</body>
+</html>

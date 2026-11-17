@@ -101,7 +101,7 @@ function createService({ env = process.env, fetcher = fetch, now = Date.now } = 
       if (response.status === 429) throw new ServiceError(429, 'Google has reached this project\'s free-tier quota. Try again after the quota resets. There is no paid fallback.');
       if ([401, 403].includes(response.status)) throw new ServiceError(503, 'The server API key cannot access this model. Check the free-tier project configuration.');
       if (response.status >= 500) throw new ServiceError(503, 'Google is busy right now. Try checking the saved job again later.', true);
-      if (response.status === 400) throw new ServiceError(422, suffix ? 'Google stopped this job because its video processor rejected the request. Analyze rounds starts a new job.' : 'Google rejected this analysis request. Check the video is public and supported.');
+      if (response.status === 400) throw new ServiceError(422, suffix ? 'Google stopped this job because its video processor rejected the request. Load the video again to start a new job.' : 'Google rejected this analysis request. Check the video is public and supported.');
       throw new ServiceError(502, 'Google could not finish this analysis. Try later.');
     }
     let data; try { data = await response.json(); } catch { throw new ServiceError(502, 'The analysis service returned an unreadable response.'); }
@@ -112,7 +112,7 @@ function createService({ env = process.env, fetcher = fetch, now = Date.now } = 
     if (interaction.status !== 'completed') {
       const errors = [interaction.error, ...(Array.isArray(interaction.errors) ? interaction.errors : [])].filter(Boolean);
       if (errors.some(error => /resource_exhausted|quota|rate_limit/i.test(error.code || '') || /quota|rate limit/i.test(error.message || ''))) throw new ServiceError(429, 'Google has reached this project\'s free-tier quota. Try again after the quota resets. There is no paid fallback.');
-      if (errors.some(error => /service_unavailable|internal|unavailable/i.test(error.code || ''))) throw new ServiceError(502, 'Google stopped this job because its video processor failed. Analyze rounds starts a new job. No markers were changed.');
+      if (errors.some(error => /service_unavailable|internal|unavailable/i.test(error.code || ''))) throw new ServiceError(502, 'Google stopped this job because its video processor failed. Load the video again to start a new job. No markers were changed.');
       throw new ServiceError(502, 'Analysis could not establish complete round boundaries. No markers were changed.');
     }
     const text = (interaction.steps || []).filter(step => step.type === 'model_output').flatMap(step => step.content || []).filter(part => part.type === 'text').map(part => part.text || '').join('');

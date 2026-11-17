@@ -114,14 +114,15 @@
     const canvas = document.createElement('canvas'); canvas.width = 420; canvas.height = 240;
     const ctx = canvas.getContext('2d', { willReadFrequently: true }); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 420, 240);
     ['left', 'timer', 'right'].forEach((key, index) => {
-      const box = boxes[key], height = 52, width = Math.min(360, height * box.width * video.videoWidth / (box.height * video.videoHeight));
-      ctx.drawImage(video, box.x * video.videoWidth, box.y * video.videoHeight, box.width * video.videoWidth, box.height * video.videoHeight, (420 - width) / 2, 14 + index * 80, width, height);
-      const pixels = ctx.getImageData((420 - width) / 2, 14 + index * 80, width, height);
+      // Whole-pixel placement: a fractional edge blends with the white page and reads as a stray "1".
+      const box = boxes[key], height = 52, width = Math.max(1, Math.round(Math.min(360, height * box.width * video.videoWidth / (box.height * video.videoHeight))));
+      ctx.drawImage(video, box.x * video.videoWidth, box.y * video.videoHeight, box.width * video.videoWidth, box.height * video.videoHeight, Math.round((420 - width) / 2), 14 + index * 80, width, height);
+      const pixels = ctx.getImageData(Math.round((420 - width) / 2), 14 + index * 80, width, height);
       for (let i = 0; i < pixels.data.length; i += 4) {
         const bright = Math.max(pixels.data[i], pixels.data[i + 1], pixels.data[i + 2]);
         pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = bright >= 170 ? 0 : 255;
       }
-      ctx.putImageData(pixels, (420 - width) / 2, 14 + index * 80);
+      ctx.putImageData(pixels, Math.round((420 - width) / 2), 14 + index * 80);
     });
     return canvas;
   };
@@ -133,29 +134,64 @@
     const timer = setTimeout(fail, 15000); video.addEventListener('seeked', done, { once: true }); video.addEventListener('error', fail, { once: true }); signal?.addEventListener('abort', stopped, { once: true });
     video.currentTime = time;
   });
-  async function scan({ src, duration, boxes, signal, progress }) {
-    boxes = regions(boxes); abort(signal);
+  const loadVideo = (src, signal) => new Promise((resolve, reject) => {
     const video = document.createElement('video'); video.muted = true; video.preload = 'auto'; video.src = src;
-    let worker;
+    const clean = () => { clearTimeout(timer); video.onloadeddata = null; video.onerror = null; signal?.removeEventListener('abort', stopped); };
+    const stopped = () => { clean(); reject(new DOMException('Analysis stopped.', 'AbortError')); };
+    const timer = setTimeout(() => { clean(); reject(new Error('This recording could not load for scanning.')); }, 15000);
+    video.onloadeddata = () => { clean(); resolve(video); }; video.onerror = () => { clean(); reject(new Error('This recording could not load for scanning.')); }; signal?.addEventListener('abort', stopped, { once: true });
+  });
+  // Several readers work at once, each with its own copy of the video and its own
+  // text reader. The whole timeline is read ahead in parallel; the round logic then
+  // walks through the finished readings, and its few follow-up reads jump the queue.
+  async function scan({ src, duration, boxes, signal, progress = () => {}, readers }) {
+    boxes = regions(boxes); abort(signal);
+    const cores = (typeof navigator === 'object' && navigator.hardwareConcurrency) || 4;
+    const count = Math.max(1, Math.min(4, readers || Math.floor(cores / 2) || 1));
+    const videos = [], workers = [];
+    const stopAll = () => { workers.forEach(worker => worker.terminate().catch(() => {})); };
+    signal?.addEventListener('abort', stopAll, { once: true });
     try {
-      await new Promise((resolve, reject) => {
-        const clean = () => { clearTimeout(timer); video.onloadeddata = null; video.onerror = null; signal?.removeEventListener('abort', stopped); };
-        const stopped = () => { clean(); reject(new DOMException('Analysis stopped.', 'AbortError')); };
-        const timer = setTimeout(() => { clean(); reject(new Error('This recording could not load for scanning.')); }, 15000);
-        video.onloadeddata = () => { clean(); resolve(); }; video.onerror = () => { clean(); reject(new Error('This recording could not load for scanning.')); }; signal?.addEventListener('abort', stopped, { once: true });
-      });
-      worker = await createReader(signal);
-      const stopWorker = () => { worker.terminate().catch(() => {}); };
-      signal?.addEventListener('abort', stopWorker, { once: true });
-      try {
-        return await detect({ duration, signal, progress, read: async time => {
-          while (document.hidden) { abort(signal); await new Promise(resolve => setTimeout(resolve, 250)); }
-          await seek(video, time, signal); abort(signal);
-          let result; try { result = await bounded(worker.recognize(crop(video, boxes)), signal, 20000, 'The local text reader stopped.'); } catch { abort(signal); throw new Error('The local text reader stopped. Try again.'); }
-          return parse(result.data);
-        } });
-      } finally { signal?.removeEventListener('abort', stopWorker); }
-    } finally { await worker?.terminate(); video.removeAttribute('src'); video.load(); }
+      videos.push(...await Promise.all(Array.from({ length: count }, () => loadVideo(src, signal))));
+      // The first reader downloads the text model; the rest then start from the cache.
+      workers.push(await createReader(signal));
+      const extra = await Promise.allSettled(Array.from({ length: count - 1 }, () => createReader(signal)));
+      extra.forEach(result => { if (result.status === 'fulfilled') workers.push(result.value); });
+      abort(signal);
+      const cache = new Map(), queue = [], idle = workers.map((worker, index) => ({ worker, video: videos[index] }));
+      const pump = () => {
+        while (idle.length && queue.length) {
+          const reader = idle.pop(), task = queue.shift();
+          (async () => {
+            try {
+              while (document.hidden) { abort(signal); await new Promise(resolve => setTimeout(resolve, 250)); }
+              await seek(reader.video, task.time, signal); abort(signal);
+              let result; try { result = await bounded(reader.worker.recognize(crop(reader.video, boxes)), signal, 20000, 'The local text reader stopped.'); } catch { abort(signal); throw new Error('The local text reader stopped. Try again.'); }
+              task.resolve(parse(result.data));
+            } catch (error) { task.reject(error); }
+            finally { idle.push(reader); pump(); }
+          })();
+        }
+      };
+      const read = (time, urgent) => {
+        const key = time.toFixed(3);
+        if (!cache.has(key)) {
+          const promise = new Promise((resolve, reject) => { const task = { time, resolve, reject }; if (urgent) queue.unshift(task); else queue.push(task); });
+          promise.catch(() => {}); cache.set(key, promise); pump();
+        }
+        return cache.get(key);
+      };
+      const step = 2, grid = [];
+      for (let time = 0; time < duration; time += step) grid.push(time);
+      let done = 0;
+      grid.forEach(time => read(time).then(() => { done++; progress(Math.min(.99, done / grid.length)); }, () => {}));
+      const rounds = await detect({ duration, signal, step, progress: () => {}, read: time => read(time, true) });
+      progress(1); return rounds;
+    } finally {
+      signal?.removeEventListener('abort', stopAll);
+      await Promise.all(workers.map(worker => worker.terminate().catch(() => {})));
+      videos.forEach(video => { video.removeAttribute('src'); video.load(); });
+    }
   }
   return Object.freeze({ defaults, regions, parse, detect, crop, createReader, scan });
 });

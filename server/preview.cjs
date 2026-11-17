@@ -9,7 +9,7 @@ const { handler } = require('./round-analysis.cjs');
 const portIndex = process.argv.indexOf('--port');
 const port = portIndex >= 0 ? Number(process.argv[portIndex + 1]) : 4175;
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid preview port.');
-const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.woff2': 'font/woff2', '.woff': 'font/woff', '.txt': 'text/plain', '.xml': 'application/xml', '.ico': 'image/x-icon' };
+const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.woff': 'font/woff', '.txt': 'text/plain', '.xml': 'application/xml', '.ico': 'image/x-icon' };
 const routes = require('../vercel.json').routes.filter(route => route.src);
 const server = http.createServer(async (req, res) => {
   try {
@@ -25,7 +25,7 @@ const server = http.createServer(async (req, res) => {
     const pathname = route?.dest ? url.pathname.replace(new RegExp('^' + route.src + '$'), route.dest) : url.pathname;
     const relative = decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html';
     const file = path.resolve(root, relative), extension = path.extname(file).toLowerCase();
-    const allowed = /^(?:(?:index|dojo|vod|training)\.html|favicon\.ico|robots\.txt|sitemap\.xml|(?:css|js|assets|pages)\/)/.test(relative);
+    const allowed = /^(?:(?:index|dojo|vod|lineups|training)\.html|favicon\.ico|robots\.txt|sitemap\.xml|(?:css|js|assets|pages)\/)/.test(relative);
     if (!allowed || relative.split(/[\\/]/).some(part => part.startsWith('.')) || !file.startsWith(root + path.sep) || !types[extension] || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end('Not found.'); return; }
     res.writeHead(200, { 'Content-Type': types[extension] + '; charset=utf-8', 'Content-Length': fs.statSync(file).size, 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Cache-Control': 'no-cache' });
     if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);

@@ -15,7 +15,7 @@
   face.appendChild(make('span', 'dock-label', 'Kixot'));
   folder.append(back, paper, face, toggle);
   const tree = make('div', 'branch-menu'); tree.id = 'siteMenu'; tree.hidden = true;
-  const groups = [{ label: 'Site', links: [links[0], links[1], links[4]] }, { label: 'Training', links: [links[2], links[3]] }];
+  const groups = [{ label: 'Site', links: [links[0], links[1], links[5]] }, { label: 'Training', links: [links[2], links[3], links[4]] }];
   const marker = make('span', 'branch-marker'); tree.appendChild(marker);
   const paths = [], layouts = [];
   const svgNode = tag => document.createElementNS('http://www.w3.org/2000/svg', tag);

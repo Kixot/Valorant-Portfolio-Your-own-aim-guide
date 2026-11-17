@@ -14,7 +14,7 @@ test('clean page URLs serve existing files and legacy URLs redirect once', () =>
     const replacement = route.headers?.Location || route.dest;
     return { status: route.status, destination: pathname.replace(new RegExp('^' + route.src + '$'), replacement) };
   };
-  for (const page of ['dojo', 'vod']) {
+  for (const page of ['dojo', 'vod', 'lineups']) {
     assert.deepEqual(resolve('/' + page), { status: undefined, destination: '/' + page + '.html' });
     assert.deepEqual(resolve('/' + page + '.html'), { status: 308, destination: '/' + page });
     assert.deepEqual(resolve('/' + page + '/'), { status: 308, destination: '/' + page });

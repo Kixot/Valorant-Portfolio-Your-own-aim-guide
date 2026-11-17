@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const origin = 'https://www.kixotgg.com';
-const pages = ['index.html', 'dojo.html', 'vod.html'];
+const pages = ['index.html', 'dojo.html', 'vod.html', 'lineups.html'];
 
 test('search metadata identifies each public page and exposes crawlable image previews', () => {
   for (const file of pages) {

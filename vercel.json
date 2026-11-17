@@ -8,10 +8,10 @@
     { "src": "/\\.[^/]*(?:/.*)?", "status": 404 },
     { "src": "/(?:package(?:-lock)?\\.json|Preview\\.cmd|README\\.md)", "status": 404 },
     { "src": "/index\\.html", "status": 308, "headers": { "Location": "/" } },
-    { "src": "/(dojo|vod)\\.html", "status": 308, "headers": { "Location": "/$1" } },
+    { "src": "/(dojo|vod|lineups)\\.html", "status": 308, "headers": { "Location": "/$1" } },
     { "src": "/(?:pages/)?training(?:\\.html)?/?", "status": 308, "headers": { "Location": "/dojo" } },
-    { "src": "/(dojo|vod)/", "status": 308, "headers": { "Location": "/$1" } },
-    { "src": "/(dojo|vod)", "dest": "/$1.html" },
+    { "src": "/(dojo|vod|lineups)/", "status": 308, "headers": { "Location": "/$1" } },
+    { "src": "/(dojo|vod|lineups)", "dest": "/$1.html" },
     { "handle": "filesystem" }
   ]
 }

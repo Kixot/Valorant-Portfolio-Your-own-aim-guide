@@ -64,9 +64,9 @@
     return reviews;
   };
   const reviewText = review => ['Kixot VOD review', review.source.type === 'youtube' ? 'YouTube: https://www.youtube.com/watch?v=' + review.source.videoId : 'Local file: ' + review.source.name,
-    '', 'My points', ...review.rounds.map(round => stamp(round.time) + ' ' + round.label), '', 'User tagged mistakes',
+    '', 'My points', ...review.rounds.map(round => stamp(round.time) + ' ' + round.label), '', 'My tagged mistakes',
     ...review.mistakes.map(mistake => stamp(mistake.time) + ' ' + mistake.type + (mistake.note ? ': ' + mistake.note : '')),
-    '', 'User tagged counts', ...TYPES.map(type => type + ': ' + review.mistakes.filter(item => item.type === type).length),
+    '', 'My tagged counts', ...TYPES.map(type => type + ': ' + review.mistakes.filter(item => item.type === type).length),
     '', 'Detected rounds (check timestamps)', ...(review.detectedRounds || []).map(item => stamp(item.start) + ' to ' + stamp(item.end) + ' Map ' + item.map + ' Round ' + item.round + (item.confirmed ? ' (confirmed)' : ' (' + item.confidence + ' confidence)'))].join('\n');
   const api = Object.freeze({ TYPES, parseYouTube, time, stamp, key, validateReview, validateImport, validateDetectedRounds, reviewText });
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else scope.KixotVodCore = api;

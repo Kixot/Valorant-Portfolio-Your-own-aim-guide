@@ -1,5 +1,14 @@
 (() => {
   'use strict';
+  // Opened straight from disk there is no server to map /dojo and /vod, so
+  // point the page links at the HTML files beside this one.
+  if (location.protocol === 'file:') {
+    const files = { '/': 'index.html', '/dojo': 'dojo.html', '/vod': 'vod.html', '/lineups': 'lineups.html' };
+    document.querySelectorAll('a[href^="/"]').forEach(link => {
+      const match = /^(\/(?:dojo|vod|lineups)?)([?#].*)?$/.exec(link.getAttribute('href'));
+      if (match) link.setAttribute('href', files[match[1]] + (match[2] || ''));
+    });
+  }
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const fine = matchMedia('(hover: hover) and (pointer: fine)');
   const coarse = matchMedia('(any-pointer: coarse)');

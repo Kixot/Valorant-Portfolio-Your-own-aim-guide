@@ -20,7 +20,7 @@ test('all local HTML stylesheet, script, image and page paths exist', () => {
       const link = match[1]; if (/^(?:[a-z]+:|#|\/\/)/i.test(link)) continue;
       const relative = decodeURIComponent(link.split(/[?#]/)[0]); if (!relative) continue;
       const pathname = relative.startsWith('/') ? relative.slice(1) : path.relative(root, path.resolve(path.dirname(file), relative));
-      const target = path.join(root, /^(dojo|vod)$/.test(pathname) ? pathname + '.html' : pathname || 'index.html');
+      const target = path.join(root, /^(dojo|vod|lineups)$/.test(pathname) ? pathname + '.html' : pathname || 'index.html');
       assert.ok(fs.existsSync(target), file + ': missing ' + link);
     }
   }

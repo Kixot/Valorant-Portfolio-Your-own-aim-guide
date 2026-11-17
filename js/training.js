@@ -718,7 +718,7 @@
 
       /* optional 3d skin models: a skin only swaps the gun when assets/dojo-assets.json
          lists a model file for it. anything missing or broken keeps the built-in gun. */
-      let gunBox = null, gunModel = null, skinToken = 0, gltfLoad = null;
+      let gunBox = null, gunModel = null, gunEnv = null, skinToken = 0, gltfLoad = null;
       const loadGltf = () => {
         if (THREE.GLTFLoader) return Promise.resolve();
         if (gltfLoad) return gltfLoad;
@@ -736,14 +736,82 @@
         const expected = ++skinToken;
         if (gunModel) { gun.remove(gunModel); gunModel = null; }
         gunBox.visible = true;
-        if (!skin || !skin.model) return;
+        if (!skin) return;
+        if (!skin.model) {
+          /* no 3d model for this skin: hold its official render where the gun sits.
+             the standard vandal keeps the built-in gun. */
+          if (!skin.icon || skin.name === 'Standard Vandal') return;
+          const loader = new THREE.TextureLoader();
+          loader.setCrossOrigin('anonymous');
+          loader.load(skin.icon, (texture) => {
+            if (expected !== skinToken) { texture.dispose(); return; }
+            const ratio = texture.image && texture.image.width ? texture.image.height / texture.image.width : 0.3;
+            const card = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 1.55 * ratio), new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, fog: false }));
+            /* the render shows the gun side-on with the barrel to the left: turn it
+               so the barrel runs away from the camera, angled in a little so it reads. */
+            card.rotation.y = -Math.PI / 2 + 0.42;
+            card.position.set(0.02, 0.0, -0.5);
+            gunModel = card;
+            gun.add(card);
+            gunBox.visible = false;
+          }, undefined, () => { if (expected === skinToken) gunBox.visible = true; });
+          return;
+        }
         loadGltf().then(() => new Promise((resolve, reject) => new THREE.GLTFLoader().load(skin.model.url, resolve, undefined, reject))).then((gltf) => {
           if (expected !== skinToken) return;
-          const model = gltf.scene;
+          let model = gltf.scene;
+          if (skin.model.keep && skin.model.keep.length) {
+            /* a file with several guns in it: lift out the named parts and drop the rest */
+            model.updateMatrixWorld(true);
+            const parts = [];
+            model.traverse((node) => { if (skin.model.keep.includes(node.name)) parts.push(node); });
+            if (parts.length) { const picked = new THREE.Group(); parts.forEach((node) => picked.attach(node)); model = picked; }
+          }
+          /* the range renders in linear space with no reflections, which turns
+             textured metal flat and dark. show the textures as painted and give
+             the gun a small studio to reflect. */
+          if (!gunEnv) {
+            const studio = new THREE.Scene();
+            studio.background = new THREE.Color(0x2a2a2a);
+            const panel = (w, h, x, y, z, bright) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(bright, bright, bright), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); studio.add(m); };
+            panel(6, 3, 0, 5, 0, 3); panel(4, 4, -5, 1, 2, 1.6); panel(4, 4, 5, 1, -2, 1.1); panel(8, 2, 0, -4, 0, 0.35);
+            const pmrem = new THREE.PMREMGenerator(renderer);
+            gunEnv = pmrem.fromScene(studio, 0.03).texture;
+            pmrem.dispose();
+          }
+          model.traverse((part) => {
+            if (!part.isMesh) return;
+            (Array.isArray(part.material) ? part.material : [part.material]).forEach((material) => {
+              if (!material) return;
+              if (material.map) { material.map.encoding = THREE.LinearEncoding; material.map.needsUpdate = true; }
+              if (material.emissiveMap) { material.emissiveMap.encoding = THREE.LinearEncoding; material.emissiveMap.needsUpdate = true; }
+              if ('envMap' in material) { material.envMap = gunEnv; material.envMapIntensity = 1.15; }
+              material.needsUpdate = true;
+            });
+          });
           /* fan models come in any size and facing: fit the longest side to the
              built-in gun's length and point it down the barrel axis (-z). */
           let size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
           if (size.x > size.z) model.rotation.y = Math.PI / 2;
+          /* which end is the muzzle? a rifle is thin at the barrel and tall at the
+             stock, so compare how tall each end of the model is and turn the thin
+             end away from the camera. */
+          model.updateMatrixWorld(true);
+          const span = new THREE.Box3().setFromObject(model), length = span.max.z - span.min.z || 1;
+          const ends = [[Infinity, -Infinity], [Infinity, -Infinity]], vertex = new THREE.Vector3();
+          model.traverse((part) => {
+            const spots = part.isMesh && part.geometry && part.geometry.attributes.position;
+            if (!spots) return;
+            const step = Math.max(1, Math.floor(spots.count / 4000));
+            for (let i = 0; i < spots.count; i += step) {
+              vertex.fromBufferAttribute(spots, i).applyMatrix4(part.matrixWorld);
+              const along = (vertex.z - span.min.z) / length;
+              const end = along < 0.18 ? ends[0] : along > 0.82 ? ends[1] : null;
+              if (end) { end[0] = Math.min(end[0], vertex.y); end[1] = Math.max(end[1], vertex.y); }
+            }
+          });
+          const farTall = ends[0][1] - ends[0][0], nearTall = ends[1][1] - ends[1][0];
+          if (Number.isFinite(farTall) && Number.isFinite(nearTall) && farTall > nearTall) model.rotation.y += Math.PI;
           model.rotation.y += skin.model.rotateY * Math.PI / 180;
           const holder = new THREE.Group();
           holder.add(model);
@@ -752,10 +820,23 @@
           holder.scale.setScalar(1.8 / longest * skin.model.scale);
           const center = new THREE.Box3().setFromObject(holder).getCenter(new THREE.Vector3());
           holder.position.set(-center.x, -center.y - 0.03, -center.z - 0.48);
-          gunModel = holder;
-          gun.add(holder);
+          /* the range is lit for white targets on black, which leaves a textured
+             gun almost unlit. two short-range lamps travel with it instead. */
+          const rig = new THREE.Group();
+          const key = new THREE.PointLight(0xffffff, 1.3, 5);
+          key.position.set(-0.7, 0.7, 0.5);
+          const fill = new THREE.PointLight(0xffffff, 0.6, 5);
+          fill.position.set(0.5, 0.2, -1.2);
+          rig.add(holder, key, fill);
+          gunModel = rig;
+          gun.add(rig);
           gunBox.visible = false;
-        }).catch(() => { if (expected === skinToken) gunBox.visible = true; });
+          document.dispatchEvent(new CustomEvent('kixot:skin-model', { detail: { name: skin.name, ok: true } }));
+        }).catch((error) => {
+          if (expected !== skinToken) return;
+          gunBox.visible = true;
+          document.dispatchEvent(new CustomEvent('kixot:skin-model', { detail: { name: skin.name, ok: false, reason: (error && error.message) || 'file missing or unreadable' } }));
+        });
       };
       document.addEventListener('kixot:skin', (event) => applySkinModel(event.detail));
 
@@ -824,6 +905,7 @@
 
       const shoot = () => {
         if (!playing || paused) return;
+        const fired = shotSound();
         if (!raycaster) raycaster = new THREE.Raycaster();
         shots++;
         camera.updateMatrixWorld(true);
@@ -846,7 +928,7 @@
           } else beep(760 + Math.min(500, streak * 40), 0.06, 'square', 0.05);
         } else if (mode !== 'track') {
           streak = 0;
-          beep(140, 0.09, 'sawtooth', 0.04);
+          if (!fired) beep(140, 0.09, 'sawtooth', 0.04);
         }
         updateHud();
       };
@@ -887,19 +969,72 @@
          the streak in shoot(), so the next hit starts again from the first chime.
          files listed under killSounds in assets/dojo-assets.json replace the chimes. */
       const KILL_NOTES = [523.25, 659.25, 783.99, 987.77, 1174.66];
-      let killClips = [];
-      (window.KixotDojoAssets || Promise.resolve({})).then((extra) => {
-        const list = Array.isArray(extra.killSounds) ? extra.killSounds.slice(0, 5) : [];
-        killClips = list.map((file) => {
-          if (typeof file !== 'string' || !/^[\w.-]+\.(mp3|ogg|wav|m4a)$/i.test(file)) return null;
-          const clip = new Audio('assets/audio/' + file);
-          clip.preload = 'auto';
-          return clip;
-        });
-      }).catch(() => {});
+      /* sound files are optional and listed in assets/dojo-assets.json:
+         shotSound and killSounds for every skin, skinSounds[name] = { shot, kills }
+         for one skin. with no shot file a hit plays a chime and a miss a low beep. */
+      let soundBook = {}, soundSet = { shot: null, kills: [], sprite: null };
+      const clipOf = (file) => {
+        if (typeof file !== 'string' || !/^[\w .'()-]+\.(mp3|ogg|wav|m4a)$/i.test(file)) return null;
+        const clip = new Audio('assets/audio/' + encodeURIComponent(file));
+        clip.preload = 'auto';
+        return clip;
+      };
+      /* a kill sprite is one file holding the first to fifth kill back to back,
+         with marks = [[start, end], ...] in seconds for each of them. */
+      /* the whole file is decoded once and each kill is played as a slice of it.
+         seeking an <audio> element instead only works when the server supports
+         byte ranges; without them every kill restarted at the first sound. */
+      const spriteCache = new Map();
+      const audioCtx = () => { if (!beep.ctx) beep.ctx = new (window.AudioContext || window.webkitAudioContext)(); return beep.ctx; };
+      const spriteOf = (file, marks) => {
+        const valid = Array.isArray(marks) && marks.length === 5 && marks.every((m) => Array.isArray(m) && m.length === 2 && m.every(Number.isFinite) && m[0] >= 0 && m[1] > m[0]);
+        if (!valid || typeof file !== 'string' || !/^[\w .'()-]+\.(mp3|ogg|wav|m4a)$/i.test(file)) return null;
+        if (!spriteCache.has(file)) {
+          const sprite = { marks, buffer: null, source: null };
+          fetch('assets/audio/' + encodeURIComponent(file)).then((r) => { if (!r.ok) throw new Error('missing'); return r.arrayBuffer(); })
+            .then((bytes) => new Promise((resolve, reject) => audioCtx().decodeAudioData(bytes, resolve, reject)))
+            .then((buffer) => { sprite.buffer = buffer; }).catch(() => { spriteCache.delete(file); });
+          spriteCache.set(file, sprite);
+        }
+        const sprite = spriteCache.get(file); sprite.marks = marks;
+        return sprite;
+      };
+      const stopSprite = (sprite) => { if (sprite && sprite.source) { try { sprite.source.stop(); } catch (e) { /* shh */ } sprite.source = null; } };
+      const pickSounds = (skin) => {
+        const own = (soundBook.skinSounds && skin && soundBook.skinSounds[skin.name]) || {};
+        const kills = Array.isArray(own.kills) ? own.kills : Array.isArray(soundBook.killSounds) ? soundBook.killSounds : [];
+        const shared = soundBook.killSprite || {};
+        stopSprite(soundSet.sprite);
+        soundSet = { shot: clipOf(own.shot || soundBook.shotSound), kills: kills.slice(0, 5).map(clipOf), sprite: spriteOf(own.killSprite, own.marks) || spriteOf(shared.file, shared.marks) };
+      };
+      (window.KixotDojoAssets || Promise.resolve({})).then((extra) => { soundBook = extra || {}; pickSounds(window.KixotSkin); }).catch(() => {});
+      document.addEventListener('kixot:skin', (event) => pickSounds(event.detail));
+      const shotSound = () => {
+        if (!soundSet.shot) return false;
+        /* a fresh copy per shot so fast taps overlap instead of cutting each other off */
+        try { const clip = soundSet.shot.cloneNode(); clip.volume = 0.7; const played = clip.play(); if (played) played.catch(() => {}); } catch (e) { return false; }
+        return true;
+      };
       const killSound = (count) => {
-        const level = (Math.max(1, count) - 1) % 5;
-        const clip = killClips[level];
+        /* first to fifth kill in order; every kill after the fifth keeps the ace
+           sound until a miss sends the streak back to the first. */
+        const level = Math.min(5, Math.max(1, count)) - 1;
+        const sprite = soundSet.sprite;
+        if (sprite && sprite.buffer) {
+          try {
+            const ctx = audioCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+            stopSprite(sprite);
+            const [start, end] = sprite.marks[level];
+            const source = ctx.createBufferSource(), gain = ctx.createGain();
+            source.buffer = sprite.buffer; gain.gain.value = 0.8;
+            source.connect(gain); gain.connect(ctx.destination);
+            source.start(0, Math.min(start, sprite.buffer.duration - 0.05), Math.max(0.1, Math.min(end, sprite.buffer.duration) - start));
+            sprite.source = source;
+            return;
+          } catch (e) { /* fall through to the chime */ }
+        }
+        const clip = soundSet.kills[level];
         if (clip) {
           try { clip.currentTime = 0; const played = clip.play(); if (played) played.catch(() => {}); return; } catch (e) { /* fall through to the chime */ }
         }
