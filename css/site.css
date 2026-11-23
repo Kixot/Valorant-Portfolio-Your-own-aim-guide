@@ -437,9 +437,6 @@
       .hero-floats .fl-m { display: none; } /* keep small screens clean */
       .hero-floats .fl-rank { width: clamp(22px, 6vw, 32px); }
     }
-    @media (prefers-reduced-motion: reduce) {
-      .hero-floats.is-on .fl { animation: none; opacity: 1; }
-    }
 
     .scroll-hint {
       position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
@@ -486,9 +483,6 @@
       border-color: #ffffff;
       background: #ffffff;
       color: #000000;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .carousel__track { animation: none; }
     }
 
     /* ============ sections ============ */
@@ -697,18 +691,4 @@
       .footer { padding-bottom: 120px; }
     }
 
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-      }
-      .reveal { opacity: 1; transform: none; }
-      .fade-in { opacity: 1; }
-      .w { clip-path: none; }
-      .w > i { opacity: 1; transform: none; transition-delay: 0s !important; }
-      .spot::after { transform: scaleX(1); }
-      #cur { display: none; }
-      .page { opacity: 1; }
-    }
   

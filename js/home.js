@@ -2,7 +2,9 @@
     (() => {
       'use strict';
 
-      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // The homepage animates for everyone, including devices with the system's reduce-motion
+      // setting on (common on laptops in battery saver), at the site owner's request.
+      const reducedMotion = false;
       const $ = (s) => document.querySelector(s);
 
       /* ============ page reveal: no page transition any more (it flashed kixot
@@ -557,7 +559,7 @@
         const scratch = document.createElement('canvas');
         const scratchCtx = scratch.getContext('2d');
         if (!ctx || !scratchCtx) return;
-        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const reducedMotion = false; // see the note at the top of this file
         const LABEL_FONT = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
         const FALLOFF_STEPS = 8;
         const SPRING = 320;
