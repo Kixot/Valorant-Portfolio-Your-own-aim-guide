@@ -7,7 +7,7 @@ const codeStamp = String(Math.floor(fs.statSync(__filename).mtimeMs));
 const portIndex = process.argv.indexOf('--port');
 const port = portIndex >= 0 ? Number(process.argv[portIndex + 1]) : 4175;
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid preview port.');
-const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.woff': 'font/woff', '.txt': 'text/plain', '.xml': 'application/xml', '.ico': 'image/x-icon' };
+const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.gz': 'application/gzip', '.woff': 'font/woff', '.txt': 'text/plain', '.xml': 'application/xml', '.ico': 'image/x-icon' };
 const routes = require('../vercel.json').routes.filter(route => route.src);
 const server = http.createServer(async (req, res) => {
   try {

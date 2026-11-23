@@ -40,8 +40,8 @@
               const host = document.getElementById('netBg');
               if (!host) return;
               try {
-                if (!window.THREE) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js');
-                if (!window.VANTA || !window.VANTA.NET) await loadScript('https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js');
+                if (!window.THREE) await loadScript('assets/vendor/three/three.min.js');
+                if (!window.VANTA || !window.VANTA.NET) await loadScript('assets/vendor/vanta/vanta.net.min.js');
               } catch (e) { netCssFallback(); return; }
 
               let net = null;
@@ -351,7 +351,7 @@
       document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 
       /* ============ apple emojis everywhere (emoji-datasource-apple pngs) ============ */
-      const EMJ_CDN = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
+      const EMJ_CDN = 'assets/img/emoji/';
       const EMJ_RE = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
       const applefy = (root) => {
         if (!root) return;

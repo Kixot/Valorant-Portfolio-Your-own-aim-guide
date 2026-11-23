@@ -3,7 +3,7 @@
       'use strict';
 
       const $ = (s) => document.querySelector(s);
-      const TIER = 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04';
+      const TIER = 'assets/valorant/tiers';
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       if (!reducedMotion) {
@@ -154,7 +154,7 @@
           b.className = 'opt';
           if (typeof it === 'string') { b.textContent = it; b.dataset.v = it; }
           else {
-            b.innerHTML = (it.tier ? '<img src="' + TIER + '/' + it.tier + '/smallicon.png" alt="" width="256" height="256" fetchpriority="low" decoding="async" />' : '') +
+            b.innerHTML = (it.tier ? '<img src="' + TIER + '/' + it.tier + '-smallicon.png" alt="" width="256" height="256" fetchpriority="low" decoding="async" />' : '') +
               it.label + (it.n ? ' <span style="opacity:.82">' + it.n + '</span>' : '');
             b.dataset.v = it.id;
           }
@@ -625,7 +625,7 @@
         if (threeLoad) return threeLoad;
         threeLoad = new Promise((resolve, reject) => {
           const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+          s.src = 'assets/vendor/three/three.min.js';
           s.onload = () => resolve();
           s.onerror = () => { threeLoad = null; reject(new Error('three.js cdn unreachable')); };
           document.head.appendChild(s);
@@ -724,7 +724,7 @@
         if (gltfLoad) return gltfLoad;
         gltfLoad = new Promise((resolve, reject) => {
           const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+          s.src = 'assets/vendor/three/GLTFLoader.js';
           s.onload = () => resolve();
           s.onerror = () => { gltfLoad = null; reject(new Error('model loader unreachable')); };
           document.head.appendChild(s);
@@ -1305,7 +1305,7 @@
         const rank = runBenchFor(mode).find((r) => s.score >= r.min) || runBenchFor(mode)[runBenchFor(mode).length - 1];
         ovBig.textContent = s.score;
         ovBig.classList.add('is-showing');
-        ovRank.src = TIER + '/' + rank.tier + '/largeicon.png';
+        ovRank.src = TIER + '/' + rank.tier + '-largeicon.png';
         ovRank.classList.add('is-showing');
         ovMsg.textContent = rank.name + ' pace · ' + rank.pun;
         ovDesc.textContent = s.acc + '% accuracy · best streak ' + s.streak + ' · ' + diff.short + ' difficulty';
@@ -1367,7 +1367,7 @@
         const rank = solo.length
           ? (BENCH.find((b) => b.min < 0 || soloAvg >= b.min) || BENCH[BENCH.length - 1])
           : (BENCH.find((b) => tRank && b.name === tRank.name) || BENCH[BENCH.length - 1]);
-        $('#resRankIcon').src = TIER + '/' + rank.tier + '/largeicon.png';
+        $('#resRankIcon').src = TIER + '/' + rank.tier + '-largeicon.png';
         $('#resRankName').textContent = rank.name;
         $('#resPun').textContent = rank.pun;
         const totals = [];
@@ -1416,7 +1416,7 @@
           const need = b.min < 0 ? '0 (ouch)' : b.min.toLocaleString() + '+';
           const tr = BENCH_TRACK.find((x) => x.name === b.name);
           const needT = (b.min < 0 || !tr || tr.min < 0) ? '0 (ouch)' : tr.min.toLocaleString() + '+';
-          d.innerHTML = '<span><img src="' + TIER + '/' + b.tier + '/smallicon.png" alt="" width="256" height="256" loading="lazy" decoding="async" />' + b.name + (b.name === rank.name ? ' ← you' : '') + '</span><span>' + need + ' · ' + needT + '</span>';
+          d.innerHTML = '<span><img src="' + TIER + '/' + b.tier + '-smallicon.png" alt="" width="256" height="256" loading="lazy" decoding="async" />' + b.name + (b.name === rank.name ? ' ← you' : '') + '</span><span>' + need + ' · ' + needT + '</span>';
           bt.appendChild(d);
         });
 
@@ -1688,7 +1688,7 @@
       }
 
       /* ============ apple emojis everywhere (emoji-datasource-apple pngs) ============ */
-      const EMJ_CDN = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
+      const EMJ_CDN = 'assets/img/emoji/';
       const EMJ_RE = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
       const applefy = (root) => {
         if (!root) return;

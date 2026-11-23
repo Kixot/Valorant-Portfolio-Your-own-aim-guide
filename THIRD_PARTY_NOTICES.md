@@ -37,3 +37,16 @@ SOFTWARE.
 # Vercel Analytics
 
 @vercel/analytics 2.0.1 provides the vanilla browser SDK in assets/vendor/vercel-analytics.js. Its MIT license is included in assets/vendor/vercel-analytics.LICENSE.txt.
+
+## Self-hosted libraries
+
+Files in `assets/vendor/` are unmodified copies, served from this site so pages work on networks that block public CDNs.
+
+- three.js 0.134.0 (`three/three.min.js`, `three/GLTFLoader.js`): MIT License, Copyright 2010-2021 three.js authors. https://github.com/mrdoob/three.js
+- Vanta.js 0.5.24 (`vanta/vanta.net.min.js`): MIT License, Copyright 2018 Teng Bao. https://github.com/tengbao/vanta
+- Tesseract.js 6.0.1 and tesseract.js-core 6.0.0 (`tesseract/`): Apache License 2.0. https://github.com/naptha/tesseract.js
+- English LSTM model from @tesseract.js-data/eng 1.0.0 (`tesseract/lang/eng.traineddata.gz`): Apache License 2.0, from the Tesseract OCR project.
+
+## Valorant data
+
+`assets/valorant/` holds map, agent, ability, rank and Vandal skin names and images copied from valorant-api.com by `tools/update-valorant-data.cjs`. Valorant and its assets belong to Riot Games. Kixot was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.

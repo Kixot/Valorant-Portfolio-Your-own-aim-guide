@@ -9,7 +9,7 @@ $codeStamp = [string]([DateTimeOffset]([IO.File]::GetLastWriteTimeUtc((Join-Path
 
 if ($Serve) {
   # Development-only static file preview using built-in Windows/.NET facilities.
-  $mime = @{ '.html' = 'text/html'; '.css' = 'text/css'; '.js' = 'application/javascript'; '.json' = 'application/json'; '.glb' = 'model/gltf-binary'; '.mp3' = 'audio/mpeg'; '.txt' = 'text/plain'; '.xml' = 'application/xml'; '.svg' = 'image/svg+xml'; '.png' = 'image/png'; '.jpg' = 'image/jpeg'; '.jpeg' = 'image/jpeg'; '.webp' = 'image/webp'; '.gif' = 'image/gif'; '.ico' = 'image/x-icon'; '.woff' = 'font/woff'; '.woff2' = 'font/woff2' }
+  $mime = @{ '.html' = 'text/html'; '.css' = 'text/css'; '.js' = 'application/javascript'; '.json' = 'application/json'; '.glb' = 'model/gltf-binary'; '.mp3' = 'audio/mpeg'; '.gz' = 'application/gzip'; '.txt' = 'text/plain'; '.xml' = 'application/xml'; '.svg' = 'image/svg+xml'; '.png' = 'image/png'; '.jpg' = 'image/jpeg'; '.jpeg' = 'image/jpeg'; '.webp' = 'image/webp'; '.gif' = 'image/gif'; '.ico' = 'image/x-icon'; '.woff' = 'font/woff'; '.woff2' = 'font/woff2' }
   $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $Port)
   $listener.Start()
   try {

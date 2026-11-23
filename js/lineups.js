@@ -1,7 +1,7 @@
 /* Lineups board. Pick a map, an agent and an ability; landing spots show on the
    minimap. Click a landing spot to see where to throw it from, then click a
-   standing spot to open its video. Maps, agents and ability icons come from
-   valorant-api.com at runtime. Lineups are saved in this browser only. */
+   standing spot to open its video. Maps, agents and ability icons ship with the
+   site in assets/valorant/. Lineups are saved in this browser only. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const stage = $('luStage');
@@ -260,12 +260,11 @@
   (async () => {
     say('Loading maps and agents.');
     try {
-      const [mapData, agentData] = await Promise.all([
-        getJson('https://valorant-api.com/v1/maps'),
-        getJson('https://valorant-api.com/v1/agents?isPlayableCharacter=true')
-      ]);
-      maps = mapData.data.filter((item) => item.displayIcon && item.tacticalDescription).sort((a, b) => a.displayName.localeCompare(b.displayName));
-      agents = agentData.data.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      // A copy of the map and agent data ships with the site (tools/update-valorant-data.cjs),
+      // so the page works on networks that cannot reach valorant-api.com.
+      const data = await getJson('assets/valorant/data.json');
+      maps = data.maps.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
+      agents = data.agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
       if (!maps.length || !agents.length) throw new Error('empty');
       lineups = read();
       try { const saved = JSON.parse(localStorage.getItem(PICK) || '{}'); if (maps.some((item) => item.uuid === saved.map)) pick.map = saved.map; if (agents.some((item) => item.uuid === saved.agent)) pick.agent = saved.agent; } catch {}

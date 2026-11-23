@@ -1,9 +1,8 @@
 /* Vandal skin picker for the Dojo.
-   Skin names, tiers and renders come from valorant-api.com at runtime, so new
-   skins appear without a site update. Optional 3D models and kill sound files
-   are listed in assets/dojo-assets.json; nothing is bundled by default. */
+   Skin names, tiers and renders ship with the site in assets/valorant/ (refresh
+   them with tools/update-valorant-data.cjs). 3D models and kill sounds are
+   listed in assets/dojo-assets.json. */
 (() => {
-  const VANDAL = '9c82e19d-4575-0200-1a81-3eacf00cf872';
   const KEY = 'kixot_vandal_skin_v1';
   const TIERS = ['Ultra', 'Exclusive', 'Premium', 'Deluxe', 'Select', 'Standard'];
 
@@ -58,18 +57,14 @@
   const load = async () => {
     say('Loading skins.');
     try {
-      const [weapon, tiers, extra] = await Promise.all([
-        getJson('https://valorant-api.com/v1/weapons/' + VANDAL),
-        getJson('https://valorant-api.com/v1/contenttiers'),
-        assets
-      ]);
-      const tierName = new Map(tiers.data.map((tier) => [tier.uuid, tier.devName]));
-      skins = weapon.data.skins
-        .filter((skin) => skin.displayName && !/^Random /i.test(skin.displayName))
+      // Skin names, tiers and pictures ship with the site (tools/update-valorant-data.cjs).
+      const [data, extra] = await Promise.all([getJson('assets/valorant/data.json'), assets]);
+      const tierName = new Map(data.tiers.map((tier) => [tier.uuid, tier.devName]));
+      skins = data.vandalSkins
         .map((skin) => ({
           name: skin.displayName,
           tier: tierName.get(skin.contentTierUuid) || 'Standard',
-          icon: skin.displayIcon || (skin.chromas && skin.chromas[0] && skin.chromas[0].fullRender) || (skin.levels && skin.levels[0] && skin.levels[0].displayIcon) || null,
+          icon: skin.displayIcon || null,
           model: modelFor(extra.vandalModels, skin.displayName)
         }))
         .sort((a, b) => a.name.localeCompare(b.name));

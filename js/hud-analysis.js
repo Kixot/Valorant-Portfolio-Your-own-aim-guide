@@ -91,7 +91,7 @@
     scriptPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script'), timer = setTimeout(fail, 30000);
       function fail() { clearTimeout(timer); script.remove(); scriptPromise = null; reject(new Error('The local text reader could not load. Check your connection and try again.')); }
-      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';
+      script.src = 'assets/vendor/tesseract/tesseract.min.js';
       script.onload = () => { clearTimeout(timer); resolve(); }; script.onerror = fail; document.head.appendChild(script);
     });
     return scriptPromise;
@@ -101,9 +101,9 @@
     let worker, initializing;
     try {
       initializing = window.Tesseract.createWorker('eng', 1, { errorHandler: () => {},
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0',
-        langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int' });
+        workerPath: new URL('assets/vendor/tesseract/', document.baseURI).href + 'worker.min.js',
+        corePath: new URL('assets/vendor/tesseract/', document.baseURI).href + 'core',
+        langPath: new URL('assets/vendor/tesseract/', document.baseURI).href + 'lang' });
       worker = await bounded(initializing, signal, 90000, 'The local text reader could not start.');
       abort(signal);
       await worker.setParameters({ tessedit_char_whitelist: '0123456789:', tessedit_pageseg_mode: '6' });
